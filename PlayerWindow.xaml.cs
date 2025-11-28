@@ -10,7 +10,7 @@ namespace AsciiConverter {
         // State flags
         private bool _isWindowOpen = true;
         private bool _isPaused;
-        private bool _isDragging = false;
+        private bool _isDragging;
 
         private readonly MediaPlayer _mediaPlayer = new();
         private AsciiProject? _projectData;
@@ -53,14 +53,26 @@ namespace AsciiConverter {
         // 2. The New Loader Logic
         private void LoadSingleFile(string filePath) {
             using (FileStream fs = File.OpenRead(filePath))
-            using (BinaryReader reader = new BinaryReader(fs)) {
+            using (BinaryReader reader = new(fs)) {
                 // A. Read FPS
                 double fps = reader.ReadDouble();
+                // B. Read Color
+                string colorName = reader.ReadString();
 
-                // Update Project Data mock object so the rest of your code works
-                _projectData = new AsciiProject { FramesPerSecond = fps };
+                _projectData = new AsciiProject {
+                    FramesPerSecond = fps,
+                    ColorName = colorName
+                };
 
-                // B. Read Audio
+                try {
+                    Color color = (Color)ColorConverter.ConvertFromString(colorName);
+                    TxtDisplay.Foreground = new SolidColorBrush(color);
+                }
+                catch {
+                    TxtDisplay.Foreground = Brushes.White;
+                }
+
+                // C. Read Audio
                 int audioSize = reader.ReadInt32();
 
                 if (audioSize > 0) {
@@ -74,12 +86,12 @@ namespace AsciiConverter {
                     _hasAudio = true;
                 }
 
-                // C. Read ASCII Text
+                // D. Read ASCII Text
                 // The BinaryReader cursor is now right after the audio.
                 // Everything left in the stream is text.
 
                 // We use StreamReader on the underlying stream to read the rest
-                using (StreamReader textReader = new StreamReader(fs)) {
+                using (StreamReader textReader = new(fs)) {
                     string allText = textReader.ReadToEnd();
 
                     string[] separator = ["FRAME_END\r\n", "FRAME_END\n", "FRAME_END"];
@@ -87,9 +99,9 @@ namespace AsciiConverter {
                 }
             }
 
-            // D. Final Setup
+            // E. Final Setup
             _mediaPlayer.Volume = SldVolume.Value;
-            this.Title = $"Playing: {_frames.Length} Frames";
+            Title = $"Playing: {_frames.Length} Frames";
 
             if (_frames != null) SldProgress.Maximum = _frames.Length - 1;
 
@@ -181,7 +193,7 @@ namespace AsciiConverter {
             }
 
             // Force update the visual frame immediately
-            if (newFrameIndex < _frames.Length) {
+            if (newFrameIndex < _frames!.Length) {
                 TxtDisplay.Text = _frames[newFrameIndex].TrimEnd();
             }
         }
@@ -191,13 +203,13 @@ namespace AsciiConverter {
                 _isPaused = false;
                 _stopwatch.Start();
                 if (_hasAudio) _mediaPlayer.Play();
-                BtnPlayPause.Content = "Pause";
+                IconPlayButton.Data = (Geometry)FindResource("PauseIcon");
             }
             else {
                 _isPaused = true;
                 _stopwatch.Stop();
                 if (_hasAudio) _mediaPlayer.Pause();
-                BtnPlayPause.Content = "Play";
+                IconPlayButton.Data = (Geometry)FindResource("PlayIcon");
             }
         }
 
@@ -210,6 +222,20 @@ namespace AsciiConverter {
             _stopwatch.Stop();
             _mediaPlayer.Close();
             base.OnClosed(e);
+        }
+
+        private void FullScreenButton_OnClick(object sender, RoutedEventArgs e) {
+            if (WindowState == WindowState.Maximized) {
+                WindowState = WindowState.Normal;
+                WindowStyle = WindowStyle.SingleBorderWindow;
+                IconFullScreen.Data = (Geometry)FindResource("FullScreenIcon");
+            }
+            else {
+                WindowState = WindowState.Maximized;
+                WindowStyle = WindowStyle.None;
+                IconFullScreen.Data = (Geometry)FindResource("ExitFullScreenIcon");
+
+            }
         }
     }
 }

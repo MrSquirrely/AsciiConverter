@@ -1,25 +1,30 @@
-﻿using System;
+﻿using System.Diagnostics;
 using System.Drawing;
-using System.Drawing.Imaging;
+using System.Drawing.Text;
 using System.IO;
-using System.Threading.Tasks;
 
 using OpenCvSharp;
 using OpenCvSharp.Extensions;
 
 using Xabe.FFmpeg;
+
 using PixelFormat = System.Drawing.Imaging.PixelFormat;
+using Size = OpenCvSharp.Size;
 
 namespace AsciiConverter {
     public class AsciiRenderer {
-        public async Task RenderToMp4(string[] frames, double fps, string audioPath, string outputPath) {
+        public static async Task RenderToMp4(string[] frames, double fps, string audioPath, string outputPath, string colorName) {
             if (frames.Length == 0) return;
 
             // 1. Measure Text
             int width, height;
-            Font font = new Font("Consolas", 10, FontStyle.Bold);
+            Font font = new("Consolas", 10, FontStyle.Bold);
 
-            using (Bitmap tempBmp = new Bitmap(1, 1))
+            // Create brush based on color name
+            Color fontColor = Color.FromName(colorName);
+            SolidBrush fontBrush = new(fontColor);
+
+            using (Bitmap tempBmp = new(1, 1))
             using (Graphics tempG = Graphics.FromImage(tempBmp)) {
                 string firstFrame = frames[0];
                 SizeF size = tempG.MeasureString(firstFrame, font);
@@ -33,29 +38,27 @@ namespace AsciiConverter {
 
             // 2. Setup Video Writer
             // We use .mp4 extension for the temp file and 'mp4v' codec.
-            string tempVideoPath = Path.Combine(Path.GetDirectoryName(outputPath), "temp_render.mp4");
-            var fourcc = VideoWriter.FourCC("mp4v");
+            string tempVideoPath = Path.Combine(Path.GetDirectoryName(outputPath)!, "temp_render.mp4");
+            int fourcc = VideoWriter.FourCC("mp4v");
 
-            using (var writer = new VideoWriter(tempVideoPath, fourcc, fps, new OpenCvSharp.Size(width, height), true)) {
+            using (VideoWriter writer = new(tempVideoPath, fourcc, fps, new Size(width, height))) {
                 if (!writer.IsOpened()) {
                     throw new Exception("Could not open OpenCV VideoWriter. Make sure OpenH264 or generic codecs are installed.");
                 }
 
-                // FIX: Force PixelFormat.Format24bppRgb (3 Channels)
-                // Default is 32bpp (4 Channels) which breaks VideoWriter
-                using (Bitmap bmp = new Bitmap(width, height, PixelFormat.Format24bppRgb))
+                using (Bitmap bmp = new(width, height, PixelFormat.Format24bppRgb))
                 using (Graphics g = Graphics.FromImage(bmp)) {
-                    g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+                    g.TextRenderingHint = TextRenderingHint.AntiAlias;
 
-                    foreach (var frame in frames) {
+                    foreach (string frame in frames) {
                         g.Clear(Color.Black);
-                        g.DrawString(frame, font, Brushes.LimeGreen, 0, 0);
+                        g.DrawString(frame, font, fontBrush, 0, 0);
 
-                        using (Mat mat = BitmapConverter.ToMat(bmp)) {
-                            writer.Write(mat);
-                        }
+                        using Mat mat = bmp.ToMat();
+                        writer.Write(mat);
                     }
                 }
+                fontBrush.Dispose();
                 writer.Release();
             }
 
@@ -66,7 +69,7 @@ namespace AsciiConverter {
 
                 IMediaInfo videoInfo = await FFmpeg.GetMediaInfo(tempVideoPath);
 
-                var conversion = FFmpeg.Conversions.New()
+                IConversion? conversion = FFmpeg.Conversions.New()
                     .AddStream(videoInfo.VideoStreams);
 
                 if (File.Exists(audioPath)) {
@@ -83,7 +86,7 @@ namespace AsciiConverter {
                 if (File.Exists(tempVideoPath)) File.Delete(tempVideoPath);
             }
             catch (Exception ex) {
-                System.Diagnostics.Debug.WriteLine("FFmpeg Error: " + ex.Message);
+                Debug.WriteLine("FFmpeg Error: " + ex.Message);
                 throw;
             }
         }

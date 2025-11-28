@@ -1,8 +1,9 @@
 ﻿namespace AsciiConverter;
 
 public class AsciiProject {
-    public string AsciiTxtPath { get; set; }
-    public string AudioPath { get; set; } // This will be "audio.mp3" or "audio.wav"
+    public string AsciiTxtPath { get; set; } = null!;
+    public string AudioPath { get; set; } = null!;
     public double FramesPerSecond { get; set; }
     public int TotalFrames { get; set; }
+    public string ColorName { get; set; } = "White";
 }

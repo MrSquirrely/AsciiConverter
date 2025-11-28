@@ -3,7 +3,7 @@
 namespace AsciiConverter {
     public class BitCrusher : ISampleProvider {
         private readonly ISampleProvider _source;
-        private int _channels;
+        private readonly int _channels;
 
         // Parameters
         private int _bitDepth;
@@ -11,8 +11,8 @@ namespace AsciiConverter {
 
         // State for downsampling (Holding values)
         // We need an array to hold the last value for EACH channel
-        private float[] _lastSampleValues;
-        private int _sampleFrameCount = 0; // Counts "Pairs" of samples, not individual floats
+        private readonly float[] _lastSampleValues;
+        private int _sampleFrameCount; // Counts "Pairs" of samples, not individual floats
 
         public BitCrusher(ISampleProvider source) {
             _source = source;
@@ -42,7 +42,7 @@ namespace AsciiConverter {
         public int Read(float[] buffer, int offset, int count) {
             int samplesRead = _source.Read(buffer, offset, count);
 
-            // Calculate Bit Depth Step Size
+            // Calculate Bit-Depth Step Size
             float stepSize = (float)Math.Pow(2, _bitDepth);
 
             // LOOP through the buffer by "Frames" (Steps of 1 for Mono, 2 for Stereo)

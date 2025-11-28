@@ -3,9 +3,13 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Controls;
 using Microsoft.Win32;
+
 using NAudio.Wave;
+
 using OpenCvSharp;
+
 using Xabe.FFmpeg;
 using Xabe.FFmpeg.Downloader;
 
@@ -20,15 +24,13 @@ namespace AsciiConverter {
 
         // The ASCII ramp: characters sorted from Darkest (@) to Lightest (space)
         private readonly char[] _asciiChars = ['@', '%', '#', '*', '+', '=', '-', ':', '.', ' '];
-
-        public bool? BitCrush { get; set; }
-
+        
         public MainWindow() {
             InitializeComponent();
             InitializeFFmpeg();
         }
 
-        private async void InitializeFFmpeg() {
+        private static async void InitializeFFmpeg() {
             try {
                 string execPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg");
                 FFmpeg.SetExecutablesPath(execPath);
@@ -67,8 +69,10 @@ namespace AsciiConverter {
                 bool useBitCrush = BitCrushCheck.IsChecked == true;
                 bool convertToMp4 = ToMp4.IsChecked == true;
 
+                string selectedColor = ((ComboBoxItem)CmbColor.SelectedItem).Content.ToString()!;
+
                 // Pass it to the background task
-                await Task.Run(() => ConvertVideoToAscii(_inputVideoPath, useBitCrush, convertToMp4));
+                await Task.Run(() => ConvertVideoToAscii(_inputVideoPath, useBitCrush, convertToMp4, selectedColor));
 
                 TxtStatus.Text = "Conversion Complete!";
                 BtnConvert.IsEnabled = true;
@@ -82,7 +86,7 @@ namespace AsciiConverter {
             }
         }
 
-        private async Task ConvertVideoToAscii(string videoPath, bool isBitCrushed, bool toMp4) {
+        private async Task ConvertVideoToAscii(string videoPath, bool isBitCrushed, bool toMp4, string colorName) {
             // 1. Setup Paths
             string projectFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Output");
             Directory.CreateDirectory(projectFolder);
@@ -114,12 +118,12 @@ namespace AsciiConverter {
             }
 
             // 3. Handle BitCrushing
-            string finalAudioFileForJson = null;
+            string finalAudioFileForJson = null!;
 
             if (File.Exists(fullMp3Path)) {
                 if (isBitCrushed) {
-                    await using (var reader = new AudioFileReader(fullMp3Path)) {
-                        BitCrusher crusher = new BitCrusher(reader);
+                    await using (AudioFileReader reader = new(fullMp3Path)) {
+                        BitCrusher crusher = new(reader);
                         crusher.SetBitDepth(9);
                         crusher.SetDownSampleFactor(10);
                         WaveFileWriter.CreateWaveFile16(fullWavPath, crusher);
@@ -132,8 +136,8 @@ namespace AsciiConverter {
             }
 
             // 4. Video Capture for ASCII
-            double fps = 30.0;
-            int totalFrames = 0;
+            double fps;
+            int totalFrames;
 
             // --- SCOPE START: Wrap the writing logic in braces ---
             // This ensures the file is closed immediately after we finish the loop
@@ -144,8 +148,9 @@ namespace AsciiConverter {
                 if (fps <= 0) fps = 30.0;
 
                 await using StreamWriter writer = new(fullAsciiPath);
-                Mat frame = new Mat();
+                Mat frame = new();
                 int currentFrameIndex = 0;
+                int lastProgress = -1;
 
                 while (capture.Read(frame)) {
                     if (frame.Empty()) break;
@@ -154,13 +159,13 @@ namespace AsciiConverter {
                     double aspectRatio = (double)frame.Height / frame.Width;
                     int newHeight = (int)(newWidth * aspectRatio * 0.5);
 
-                    Mat resizedFrame = new Mat();
+                    Mat resizedFrame = new();
                     Cv2.Resize(frame, resizedFrame, new OpenCvSharp.Size(newWidth, newHeight));
 
-                    Mat grayFrame = new Mat();
+                    Mat grayFrame = new();
                     Cv2.CvtColor(resizedFrame, grayFrame, ColorConversionCodes.BGR2GRAY);
 
-                    StringBuilder sb = new StringBuilder();
+                    StringBuilder sb = new();
                     for (int y = 0; y < grayFrame.Height; y++) {
                         for (int x = 0; x < grayFrame.Width; x++) {
                             byte pixelValue = grayFrame.At<byte>(y, x);
@@ -173,8 +178,11 @@ namespace AsciiConverter {
                     await writer.WriteAsync(sb.ToString());
 
                     currentFrameIndex++;
-                    int progress = (int)((double)currentFrameIndex / totalFrames * 100);
-                    Application.Current.Dispatcher.Invoke(() => ProgBar.Value = progress);
+                    if (totalFrames <= 0) continue;
+                    int currentProgress = (int)((double)currentFrameIndex / totalFrames * 100);
+                    if (currentProgress <= lastProgress) continue;
+                    lastProgress = currentProgress;
+                    Application.Current.Dispatcher.Invoke(() => ProgBar.Value = currentProgress);
                 }
 
                 capture.Release();
@@ -187,7 +195,8 @@ namespace AsciiConverter {
                 AsciiTxtPath = asciiFileName,
                 AudioPath = finalAudioFileForJson,
                 FramesPerSecond = fps,
-                TotalFrames = totalFrames
+                TotalFrames = totalFrames,
+                ColorName = colorName
             };
 
             string jsonString = JsonSerializer.Serialize(project, new JsonSerializerOptions { WriteIndented = true });
@@ -198,12 +207,11 @@ namespace AsciiConverter {
             string singleFilePath = Path.Combine(projectFolder, "output.asciiv");
             string audioToPack = isBitCrushed ? fullWavPath : fullMp3Path;
 
-            await PackToSingleFile(singleFilePath, fps, audioToPack, fullAsciiPath);
+            await PackToSingleFile(singleFilePath, fps, audioToPack, fullAsciiPath, colorName);
 
             try {
                 if (File.Exists(fullAsciiPath)) File.Delete(fullAsciiPath);
                 if (File.Exists(fullJsonPath)) File.Delete(fullJsonPath);
-
                 // We delete both potential audio files just to be sure
                 if (File.Exists(fullMp3Path)) File.Delete(fullMp3Path);
                 if (File.Exists(fullWavPath)) File.Delete(fullWavPath);
@@ -220,15 +228,14 @@ namespace AsciiConverter {
             MessageBox.Show($"Conversion Complete! Saved single file:\n{singleFilePath}");
         }
 
-        private async Task PackToSingleFile(string outputFilePath, double fps, string audioPath, string asciiPath) {
+        private static async Task PackToSingleFile(string outputFilePath, double fps, string audioPath, string asciiPath, string colorName) {
             // 1. Open the main file stream
-            await using FileStream fs = new FileStream(outputFilePath, FileMode.Create);
+            await using FileStream fs = new(outputFilePath, FileMode.Create);
 
             // 2. Wrap it in a BinaryWriter
-            // 'leaveOpen: true' is CRITICAL here. 
-            // It tells the writer: "When you are done, don't close 'fs' yet, I still need it."
-            await using (BinaryWriter writer = new BinaryWriter(fs, Encoding.UTF8, leaveOpen: true)) {
+            await using (BinaryWriter writer = new(fs, Encoding.UTF8, leaveOpen: true)) {
                 writer.Write(fps);
+                writer.Write(colorName);
 
                 if (File.Exists(audioPath)) {
                     byte[] audioBytes = await File.ReadAllBytesAsync(audioPath);
@@ -251,57 +258,62 @@ namespace AsciiConverter {
         }
 
         private async void ConvertToMp4() {
-            // 1. Check if we have a file to convert
-            string singleFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Output", "output.asciiv");
-            if (!File.Exists(singleFile)) {
-                MessageBox.Show("Please convert a video first!");
-                return;
-            }
-            
-            await Task.Run(async () =>
-            {
-                try {
-                    // 2. Unpack the .asciiv file data manually
-                    // (We reuse the reading logic from PlayerWindow essentially)
-                    double fps = 30;
-                    string[] frames = null;
-                    string tempAudioPath = Path.Combine(Path.GetTempPath(), "temp_render_audio.wav");
+            try {
+                // 1. Check if we have a file to convert
+                string singleFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Output", "output.asciiv");
+                if (!File.Exists(singleFile)) {
+                    MessageBox.Show("Please convert a video first!");
+                    return;
+                }
 
-                    await using (FileStream fs = File.OpenRead(singleFile))
-                    using (BinaryReader reader = new BinaryReader(fs)) {
-                        fps = reader.ReadDouble();
-                        int audioSize = reader.ReadInt32();
+                await Task.Run(async () => {
+                    try {
+                        // 2. Unpack the .asciiv file data manually
+                        // (We reuse the reading logic from PlayerWindow essentially)
+                        double fps;
+                        string colorName;
+                        string[] frames;
+                        string tempAudioPath = Path.Combine(Path.GetTempPath(), "temp_render_audio.wav");
 
-                        // Extract Audio
-                        if (audioSize > 0) {
-                            byte[] audioBytes = reader.ReadBytes(audioSize);
-                            await File.WriteAllBytesAsync(tempAudioPath, audioBytes);
+                        await using (FileStream fs = File.OpenRead(singleFile))
+                        using (BinaryReader reader = new(fs)) {
+                            fps = reader.ReadDouble();
+                            colorName = reader.ReadString();
+                            int audioSize = reader.ReadInt32();
+
+                            // Extract Audio
+                            if (audioSize > 0) {
+                                byte[] audioBytes = reader.ReadBytes(audioSize);
+                                await File.WriteAllBytesAsync(tempAudioPath, audioBytes);
+                            }
+
+                            // Extract Text
+                            using (StreamReader textReader = new(fs)) {
+                                string allText = await textReader.ReadToEndAsync();
+                                string[] separator = ["FRAME_END\r\n", "FRAME_END\n", "FRAME_END"];
+                                frames = allText.Split(separator, StringSplitOptions.RemoveEmptyEntries);
+                            }
                         }
 
-                        // Extract Text
-                        using (StreamReader textReader = new StreamReader(fs)) {
-                            string allText = await textReader.ReadToEndAsync();
-                            string[] separator = ["FRAME_END\r\n", "FRAME_END\n", "FRAME_END"];
-                            frames = allText.Split(separator, StringSplitOptions.RemoveEmptyEntries);
-                        }
+                        // 3. Render it
+                        AsciiRenderer renderer = new();
+                        string outputMp4 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Output", "final_render.mp4");
+                        
+                        await AsciiRenderer.RenderToMp4(frames, fps, tempAudioPath, outputMp4, colorName);
+
+                        Application.Current.Dispatcher.Invoke(() => {
+                            MessageBox.Show("MP4 Render Complete!\nSaved to: " + outputMp4);
+                            TxtStatus.Text = "Done.";
+                        });
                     }
-
-                    // 3. Render it
-                    AsciiRenderer renderer = new AsciiRenderer();
-                    string outputMp4 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Output", "final_render.mp4");
-
-                    await renderer.RenderToMp4(frames, fps, tempAudioPath, outputMp4);
-
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        MessageBox.Show("MP4 Render Complete!\nSaved to: " + outputMp4);
-                        TxtStatus.Text = "Done.";
-                    });
-                }
-                catch (Exception ex) {
-                    Debug.WriteLine(ex.Message);
-                }
-            });
+                    catch (Exception ex) {
+                        Debug.WriteLine(ex.Message);
+                    }
+                });
+            }
+            catch (Exception e) {
+                Debug.WriteLine(e.Message);
+            }
         }
 
         private void BtnPlay_Click(object sender, RoutedEventArgs e) {
@@ -309,7 +321,7 @@ namespace AsciiConverter {
             string singleFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Output", "output.asciiv");
 
             if (File.Exists(singleFile)) {
-                PlayerWindow player = new PlayerWindow(singleFile);
+                PlayerWindow player = new(singleFile);
                 player.Show();
             }
             else {
@@ -325,5 +337,6 @@ namespace AsciiConverter {
             int index = (int)((pixelValue / 255.0) * maxIndex);
             return index;
         }
+
     }
 }

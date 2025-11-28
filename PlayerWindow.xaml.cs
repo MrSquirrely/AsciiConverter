@@ -17,7 +17,7 @@ namespace AsciiConverter {
 
         // TIMING TOOLS
         private readonly Stopwatch _stopwatch = new();
-        // NEW: This stores the time we seek to (for videos without audio)
+        // This stores the time we seek to (for videos without audio)
         private TimeSpan _seekOffset = TimeSpan.Zero;
 
         private bool _hasAudio;
@@ -46,7 +46,7 @@ namespace AsciiConverter {
                 }
             }
             catch (Exception ex) {
-                MessageBox.Show("Error loading file: " + ex.Message);
+                CustomMessageBox.Show("Error loading file: " + ex.Message);
             }
         }
 
@@ -101,7 +101,8 @@ namespace AsciiConverter {
 
             // E. Final Setup
             _mediaPlayer.Volume = SldVolume.Value;
-            Title = $"Playing: {_frames.Length} Frames";
+            string videoName = Path.GetFileNameWithoutExtension(filePath);
+            Title = $"{videoName} - {_frames.Length} Frames";
 
             if (_frames != null) SldProgress.Maximum = _frames.Length - 1;
 
@@ -226,15 +227,16 @@ namespace AsciiConverter {
 
         private void FullScreenButton_OnClick(object sender, RoutedEventArgs e) {
             if (WindowState == WindowState.Maximized) {
+                ResizeMode = ResizeMode.CanResize;
                 WindowState = WindowState.Normal;
                 WindowStyle = WindowStyle.SingleBorderWindow;
                 IconFullScreen.Data = (Geometry)FindResource("FullScreenIcon");
             }
             else {
+                ResizeMode = ResizeMode.NoResize;
                 WindowState = WindowState.Maximized;
                 WindowStyle = WindowStyle.None;
                 IconFullScreen.Data = (Geometry)FindResource("ExitFullScreenIcon");
-
             }
         }
     }

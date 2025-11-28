@@ -13,7 +13,6 @@ namespace AsciiConverter {
         // We need an array to hold the last value for EACH channel
         private readonly float[] _lastSampleValues;
         private int _sampleFrameCount; // Counts "Pairs" of samples, not individual floats
-
         public BitCrusher(ISampleProvider source) {
             _source = source;
             _channels = source.WaveFormat.Channels;

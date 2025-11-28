@@ -6,43 +6,51 @@
         xmlns:local="clr-namespace:AsciiConverter"
         mc:Ignorable="d"
         ResizeMode="NoResize"
-        MinHeight="400" MinWidth="500"
-        Height="450" Width="600"
+        MinHeight="450" MinWidth="500"
+        Height="500" Width="600"
         Title="Video to ASCII Converter">
 
     <Window.Background>
         <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#DCDCDC" Offset="0.0"/>
-            <GradientStop Color="#696969" Offset="1.0"/>
+            <GradientStop Color="#444" Offset="0.0"/>
+            <GradientStop Color="#222" Offset="1.0"/>
         </LinearGradientBrush>
     </Window.Background>
 
-    <Grid Margin="20">
+    <Grid Margin="25">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="20"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="1. Select a Video File" FontWeight="Bold" Margin="0,0,0,5"/>
+        <TextBlock Grid.Row="0" Text="1. Select a Video File" Style="{StaticResource ModernTextBlock}" Margin="0,0,0,10"/>
+
         <Button Grid.Row="1" x:Name="BtnLoad" Style="{StaticResource GradientRoundedButtonStyle}" 
-                Content="Load Video" Click="BtnLoad_Click" Height="40" Margin="0,0,0,0"/>
+                Content="Load Video" Click="BtnLoad_Click" Height="40" Margin="0,0,0,10"/>
 
-        <TextBlock Grid.Row="3" Text="2. Configure Output" FontWeight="Bold" Margin="0,0,0,5"/>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,5,0,0">
+            <Label Content="Project Name:" FontWeight="SemiBold" VerticalAlignment="Center" Width="110" Foreground="White" FontSize="14"/>
+            <TextBox x:Name="TxtProjectName" Height="30" VerticalContentAlignment="Center" Width="200" Padding="5,0"/>
+        </StackPanel>
 
-        <WrapPanel Grid.Row="4" Margin="0,0,0,15" Orientation="Horizontal">
-            <CheckBox Name="BitCrushCheck" Content="Crush Audio" IsChecked="True" VerticalAlignment="Center" Margin="0,0,15,0"/>
-            <CheckBox Name="ToMp4" Content="Create MP4" IsChecked="False" VerticalAlignment="Center" Margin="0,0,15,0"/>
+        <TextBlock Grid.Row="4" Text="2. Configure Output" Style="{StaticResource ModernTextBlock}" Margin="0,0,0,10"/>
+
+        <WrapPanel Grid.Row="5" Margin="0,0,0,15" Orientation="Horizontal">
+            <CheckBox Name="BitCrushCheck" Content="Crush Audio" IsChecked="True" Style="{StaticResource ModernCheckBox}" Margin="0,0,20,0"/>
+            <CheckBox Name="ToMp4" Content="Create MP4" IsChecked="False" Style="{StaticResource ModernCheckBox}" Margin="0,0,20,0" Checked="ToMp4_Checked"/>
 
             <StackPanel Orientation="Horizontal">
-                <Label Content="Color:" VerticalAlignment="Center" Padding="0,5,5,5"/>
-                <ComboBox x:Name="CmbColor" Width="100" SelectedIndex="0" VerticalAlignment="Center">
+                <Label Content="Color:" VerticalAlignment="Center" Padding="0,5,10,5" Foreground="White" FontSize="14" FontWeight="SemiBold"/>
+                <ComboBox x:Name="CmbColor" Width="120" SelectedIndex="0" VerticalAlignment="Center" Style="{StaticResource ModernComboBox}">
                     <ComboBoxItem Content="White"/>
                     <ComboBoxItem Content="Lime"/>
                     <ComboBoxItem Content="Red"/>
@@ -52,17 +60,17 @@
             </StackPanel>
         </WrapPanel>
 
-        <Button Grid.Row="5" x:Name="BtnConvert" Style="{StaticResource GradientRoundedButtonStyle}" 
-                Content="Convert &amp; Save" Click="BtnConvert_Click" Height="45" IsEnabled="False"/>
+        <Button Grid.Row="7" x:Name="BtnConvert" Style="{StaticResource GradientRoundedButtonStyle}" 
+                Content="Convert &amp; Save" Click="BtnConvert_Click" Height="45" IsEnabled="False" Margin="0,0,0,15"/>
 
-        <TextBlock Grid.Row="6" x:Name="TxtStatus" Text="Ready" 
-                   FontSize="16" FontWeight="SemiBold" Foreground="#333"
-                   VerticalAlignment="Center" HorizontalAlignment="Center"/>
+        <TextBlock Grid.Row="8" x:Name="TxtStatus" Text="Ready" 
+                   Style="{StaticResource ModernTextBlock}"
+                   VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,15"/>
 
-        <ProgressBar Grid.Row="7" x:Name="ProgBar" Style="{StaticResource RainbowProgressStyle}" 
-                     Height="15" Minimum="0" Maximum="100" Margin="0,0,0,10"/>
+        <ProgressBar Grid.Row="9" x:Name="ProgBar" Style="{StaticResource RainbowProgressStyle}" 
+                     Height="15" Minimum="0" Maximum="100" Margin="0,0,0,15"/>
 
-        <Button Grid.Row="8" x:Name="BtnPlay" Style="{StaticResource GradientRoundedButtonStyle}" 
+        <Button Grid.Row="10" x:Name="BtnPlay" Style="{StaticResource GradientRoundedButtonStyle}" 
                 Content="Play Last Output" Click="BtnPlay_Click" Height="40"/>
 
     </Grid>

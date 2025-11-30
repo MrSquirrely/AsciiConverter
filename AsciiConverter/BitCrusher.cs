@@ -1,6 +1,6 @@
 ﻿using NAudio.Wave;
 
-namespace AsciiConverter {
+namespace ASCIIV.Converter {
     public class BitCrusher : ISampleProvider {
         private readonly ISampleProvider _source;
         private readonly int _channels;

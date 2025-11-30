@@ -1,17 +1,17 @@
-﻿using System.Diagnostics;
+﻿using OpenCvSharp;
+using OpenCvSharp.Extensions;
+
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Text;
 using System.IO;
-
-using OpenCvSharp;
-using OpenCvSharp.Extensions;
 
 using Xabe.FFmpeg;
 
 using PixelFormat = System.Drawing.Imaging.PixelFormat;
 using Size = OpenCvSharp.Size;
 
-namespace AsciiConverter {
+namespace ASCIIV.Converter {
     public class AsciiRenderer {
         public static async Task RenderToMp4(string[] frames, double fps, string audioPath, string outputPath, string colorName) {
             if (frames.Length == 0) return;

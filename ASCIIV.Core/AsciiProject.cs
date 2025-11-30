@@ -1,4 +1,4 @@
-﻿namespace AsciiConverter;
+﻿namespace ASCIIV.Core;
 
 public class AsciiProject {
     public string AsciiTxtPath { get; set; } = null!;

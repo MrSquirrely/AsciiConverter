@@ -2,11 +2,12 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>icon.ico</ApplicationIcon>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,6 +29,12 @@
 
   <ItemGroup>
     <None Include="D:\Repos\AsciiConverter\AsciiConverter\.editorconfig" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ASCIIV.Core\ASCIIV.Core.csproj" />
+    <ProjectReference Include="..\ASCIIV.Player\ASCIIV.Player.csproj" />
+    <ProjectReference Include="..\ASCIIV.Theme\ASCIIV.Theme.csproj" />
   </ItemGroup>
 
 </Project>

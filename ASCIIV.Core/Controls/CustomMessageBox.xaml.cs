@@ -1,7 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Media;
 
-namespace AsciiConverter {
+namespace ASCIIV.Core.Controls {
     public partial class CustomMessageBox {
 
         public enum MessageBoxType {

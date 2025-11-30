@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Fonts\Ava.ttf" />
+    <Resource Include="Fonts\FirstTimeWriting.ttf" />
+    <Resource Include="Fonts\PixelatedElegance.ttf" />
+  </ItemGroup>
+
+</Project>

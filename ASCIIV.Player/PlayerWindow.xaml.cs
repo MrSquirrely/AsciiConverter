@@ -1,13 +1,15 @@
 ﻿using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
+using ASCIIV.Core;
+using ASCIIV.Core.Controls;
 
-namespace AsciiConverter {
+namespace ASCIIV.Player {
     public partial class PlayerWindow {
         private string[]? _frames;
 
-        // State flags
         private bool _isWindowOpen = true;
         private bool _isPaused;
         private bool _isDragging;
@@ -15,26 +17,46 @@ namespace AsciiConverter {
         private readonly MediaPlayer _mediaPlayer = new();
         private AsciiProject? _projectData;
 
-        // TIMING TOOLS
         private readonly Stopwatch _stopwatch = new();
-        // This stores the time we seek to (for videos without audio)
         private TimeSpan _seekOffset = TimeSpan.Zero;
 
         private bool _hasAudio;
-        private readonly string _jsonPathToLoad;
+        private readonly string? _asciivPathToLoad;
 
-        public PlayerWindow(string jsonPath) {
+        public PlayerWindow(string? asciivPath) {
             InitializeComponent();
-            _jsonPathToLoad = jsonPath;
+            _asciivPathToLoad = asciivPath;
             Loaded += PlayerWindow_Loaded;
         }
 
-        private void PlayerWindow_Loaded(object sender, RoutedEventArgs e) => LoadProject(_jsonPathToLoad);
+        private void PlayerWindow_Loaded(object sender, RoutedEventArgs e) => LoadProject(_asciivPathToLoad);
+        
+        private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e) {
+            if (e.ChangedButton == MouseButton.Left)
+                DragMove();
+        }
 
-        // 1. Change the constructor/loader to accept the .asciiv file path
-        private void LoadProject(string filePath) {
+        private void MinimizeButton_Click(object sender, RoutedEventArgs e) {
+            WindowState = WindowState.Minimized;
+        }
+
+        private void CloseButton_Click(object sender, RoutedEventArgs e) {
+            Close();
+        }
+
+        private void FullScreenButton_OnClick(object sender, RoutedEventArgs e) {
+            if (WindowState == WindowState.Maximized) {
+                WindowState = WindowState.Normal;
+                FullScreenIcon.Data = (Geometry)FindResource("FullScreenIcon");
+            }
+            else {
+                WindowState = WindowState.Maximized;
+                FullScreenIcon.Data = (Geometry)FindResource("ExitFullScreenIcon");
+            }
+        }
+        
+        private void LoadProject(string? filePath) {
             try {
-                // Check if it's our new Single File format
                 if (Path.GetExtension(filePath) == ".asciiv") {
                     LoadSingleFile(filePath);
                 }
@@ -44,13 +66,10 @@ namespace AsciiConverter {
             }
         }
 
-        // 2. The New Loader Logic
-        private void LoadSingleFile(string filePath) {
-            using (FileStream fs = File.OpenRead(filePath))
+        private void LoadSingleFile(string? filePath) {
+            using (FileStream fs = File.OpenRead(filePath!))
             using (BinaryReader reader = new(fs)) {
-                // A. Read FPS
                 double fps = reader.ReadDouble();
-                // B. Read Color
                 string colorName = reader.ReadString();
 
                 _projectData = new AsciiProject {
@@ -66,13 +85,10 @@ namespace AsciiConverter {
                     DisplayText.Foreground = Brushes.White;
                 }
 
-                // C. Read Audio
                 int audioSize = reader.ReadInt32();
 
                 if (audioSize > 0) {
                     byte[] audioBytes = reader.ReadBytes(audioSize);
-
-                    // We MUST save this to a temp file for MediaPlayer to access it
                     string tempAudioPath = Path.Combine(Path.GetTempPath(), "ascii_player_temp_audio.mp3");
                     File.WriteAllBytes(tempAudioPath, audioBytes);
 
@@ -80,23 +96,17 @@ namespace AsciiConverter {
                     _hasAudio = true;
                 }
 
-                // D. Read ASCII Text
-                // The BinaryReader cursor is now right after the audio.
-                // Everything left in the stream is text.
-
-                // We use StreamReader on the underlying stream to read the rest
                 using (StreamReader textReader = new(fs)) {
                     string allText = textReader.ReadToEnd();
-
                     string[] separator = ["FRAME_END\r\n", "FRAME_END\n", "FRAME_END"];
                     _frames = allText.Split(separator, StringSplitOptions.RemoveEmptyEntries);
                 }
             }
 
-            // E. Final Setup
             _mediaPlayer.Volume = VolumeSlider.Value;
-            string videoName = Path.GetFileNameWithoutExtension(filePath);
-            Title = $"{videoName} - {_frames.Length} Frames";
+            string? videoName = Path.GetFileNameWithoutExtension(filePath);
+
+            WindowTitleText.Text = $"{videoName} - {_frames.Length} Frames";
 
             if (_frames != null) ProgressSlider.Maximum = _frames.Length - 1;
 
@@ -121,19 +131,15 @@ namespace AsciiConverter {
                     continue;
                 }
 
-                // --- SYNC LOGIC ---
                 TimeSpan currentTime;
 
                 if (_hasAudio && _mediaPlayer.Source != null) {
                     currentTime = _mediaPlayer.Position;
-
                     if (currentTime == TimeSpan.Zero && _stopwatch.ElapsedMilliseconds > 500) {
-                        // Fallback logic uses the offset too
                         currentTime = _stopwatch.Elapsed + _seekOffset;
                     }
                 }
                 else {
-                    // FIXED: Time is Stopwatch + The Manual Offset
                     currentTime = _stopwatch.Elapsed + _seekOffset;
                 }
 
@@ -142,20 +148,17 @@ namespace AsciiConverter {
                 if (frameIndex < _frames!.Length) {
                     DisplayText.Text = _frames[frameIndex].TrimEnd();
 
-                    // Only update slider if user isn't holding it
                     if (!_isDragging) {
                         ProgressSlider.Value = frameIndex;
                     }
                 }
                 else {
-                    // STOP LOGIC
                     _isPaused = true;
                     _stopwatch.Reset();
-                    _seekOffset = TimeSpan.Zero; // Reset Offset
-
+                    _seekOffset = TimeSpan.Zero;
                     if (_hasAudio) _mediaPlayer.Stop();
-
-                    PlayPauseButton.Content = "Play";
+                    PlayPauseButton.Content = "Play"; // Ensure this matches UI update logic if using Icon
+                    PlayButtonIcon.Data = (Geometry)FindResource("PlayIcon"); // Sync Icon
                     ProgressSlider.Value = 0;
                 }
 
@@ -169,25 +172,20 @@ namespace AsciiConverter {
 
         private void ProgressSlider_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e) {
             _isDragging = false;
-
             int newFrameIndex = (int)ProgressSlider.Value;
             double newTimeInSeconds = newFrameIndex / _projectData!.FramesPerSecond;
             TimeSpan newTime = TimeSpan.FromSeconds(newTimeInSeconds);
 
             if (_hasAudio) {
                 _mediaPlayer.Position = newTime;
-                // Just restart stopwatch to keep the "No Audio Fallback" somewhat in sync
                 _stopwatch.Restart();
                 _seekOffset = newTime;
             }
             else {
-                // FIXED: Set the offset manually and restart stopwatch from 0
-                // Total Time = 0 (Stopwatch) + Offset
                 _seekOffset = newTime;
                 _stopwatch.Restart();
             }
 
-            // Force update the visual frame immediately
             if (newFrameIndex < _frames!.Length) {
                 DisplayText.Text = _frames[newFrameIndex].TrimEnd();
             }
@@ -217,21 +215,6 @@ namespace AsciiConverter {
             _stopwatch.Stop();
             _mediaPlayer.Close();
             base.OnClosed(e);
-        }
-
-        private void FullScreenButton_OnClick(object sender, RoutedEventArgs e) {
-            if (WindowState == WindowState.Maximized) {
-                ResizeMode = ResizeMode.CanResize;
-                WindowState = WindowState.Normal;
-                WindowStyle = WindowStyle.SingleBorderWindow;
-                FullScreenIcon.Data = (Geometry)FindResource("FullScreenIcon");
-            }
-            else {
-                ResizeMode = ResizeMode.NoResize;
-                WindowState = WindowState.Maximized;
-                WindowStyle = WindowStyle.None;
-                FullScreenIcon.Data = (Geometry)FindResource("ExitFullScreenIcon");
-            }
         }
     }
 }

@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="AsciiConverter/ASCIIV.Converter.csproj" />
+  <Project Path="ASCIIV.Core/ASCIIV.Core.csproj" Id="69c56a66-b456-4ec4-ba76-61d89dec2bb3" />
+  <Project Path="ASCIIV.Player/ASCIIV.Player.csproj" Id="8048dc31-0f26-4280-a385-b5bead5e278e" />
+  <Project Path="ASCIIV.Theme/ASCIIV.Theme.csproj" Id="afa6bfde-4e5e-4650-b255-7000bc4e1c71" />
+</Solution>

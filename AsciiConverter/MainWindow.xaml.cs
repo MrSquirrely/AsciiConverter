@@ -1,9 +1,6 @@
-﻿using System.Diagnostics;
-using System.IO;
-using System.Text;
-using System.Text.Json;
-using System.Windows;
-using System.Windows.Controls;
+﻿using ASCIIV.Core.Controls;
+using ASCIIV.Core;
+using ASCIIV.Player;
 
 using Microsoft.Win32;
 
@@ -11,10 +8,19 @@ using NAudio.Wave;
 
 using OpenCvSharp;
 
+using System.Diagnostics;
+using System.IO;
+using System.Text;
+using System.Text.Json;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+
 using Xabe.FFmpeg;
 using Xabe.FFmpeg.Downloader;
 
-namespace AsciiConverter {
+namespace ASCIIV.Converter {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
@@ -31,6 +37,9 @@ namespace AsciiConverter {
         private readonly char[] _highDetailChars = new string("$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\\\|()1{}[]?-_+~<>i!lI;:,\\\"^`' ").ToCharArray();
         private readonly char[] _blockChars = new string("█▓▒░ ").ToCharArray();
         private readonly char[] _binaryChars = new string("01").ToCharArray();
+
+        // Default to White in case they select Custom but cancel the dialog
+        private static string _customColorHex = "#FFFFFF";
 
         public MainWindow() {
             InitializeComponent();
@@ -86,13 +95,26 @@ namespace AsciiConverter {
                 // Capture the UI state HERE (on the main thread)
                 bool useBitCrush = BitCrushCheck.IsChecked == true;
                 bool convertToMp4 = ToMp4Check.IsChecked == true;
-
                 string selectedColor = ((ComboBoxItem)ColorComboBox.SelectedItem).Content.ToString()!;
-                int selectedTextStyle = TextStyleComboBox.SelectedIndex;
                 int videoWidth = (int)VideoWidthSlider.Value;
+                string styleText = TextStyleComboBox.Text;
+                char[] selectedRamp = styleText switch {
+                    "Standard" => _standardChars,
+                    "Binary" => _binaryChars,
+                    "High Detail" => _highDetailChars,
+                    "Blocks" => _blockChars,
+                    _ => string.IsNullOrEmpty(styleText) ? _standardChars : styleText.ToCharArray()
+                };
 
                 // Pass the custom 'projectName' to the background task
-                await Task.Run(() => ConvertVideoToAscii(_inputVideoPath, useBitCrush, convertToMp4, selectedColor, projectName, selectedTextStyle, videoWidth));
+                await Task.Run(() => ConvertVideoToAscii(
+                    _inputVideoPath, 
+                    useBitCrush, 
+                    convertToMp4, 
+                    selectedColor, 
+                    projectName, 
+                    selectedRamp, 
+                    videoWidth));
 
                 StatusText.Text = "Conversion Complete!";
                 ConvertButton.IsEnabled = true;
@@ -107,7 +129,7 @@ namespace AsciiConverter {
         }
 
         // Updated signature to accept projectName
-        private async Task ConvertVideoToAscii(string videoPath, bool isBitCrushed, bool toMp4, string colorName, string projectName, int selectedTextStyle, int videoWidth) {
+        private async Task ConvertVideoToAscii(string videoPath, bool isBitCrushed, bool toMp4, string colorName, string projectName, char[] asciiRamp, int videoWidth) {
             // 1. Setup Paths
             string projectFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Output");
             Directory.CreateDirectory(projectFolder);
@@ -188,28 +210,8 @@ namespace AsciiConverter {
                     for (int y = 0; y < grayFrame.Height; y++) {
                         for (int x = 0; x < grayFrame.Width; x++) {
                             byte pixelValue = grayFrame.At<byte>(y, x);
-                            int charIndex;
-                            switch (selectedTextStyle) {
-                                case 1:
-                                    charIndex = MapPixelToCharIndex(pixelValue, _binaryChars);
-                                    sb.Append(_binaryChars[charIndex]);
-                                    break;
-                                case 2:
-                                    charIndex = MapPixelToCharIndex(pixelValue, _highDetailChars);
-                                    sb.Append(_highDetailChars[charIndex]);
-                                    break;
-                                case 3:
-                                    charIndex = MapPixelToCharIndex(pixelValue, _blockChars);
-                                    sb.Append(_blockChars[charIndex]);
-                                    break;
-                                case 0: //Leave this here
-                                default:
-                                    charIndex = MapPixelToCharIndex(pixelValue, _standardChars);
-                                    sb.Append(_standardChars[charIndex]);
-                                    break;
-
-                            }
-
+                            int charIndex = MapPixelToCharIndex(pixelValue, asciiRamp);
+                            sb.Append(asciiRamp[charIndex]);
                         }
                         sb.AppendLine();
                     }
@@ -380,6 +382,45 @@ namespace AsciiConverter {
                 "Depending on the video length, this could take several minutes to render frame-by-frame.",
                 "Performance Warning",
                 CustomMessageBox.MessageBoxType.Warning, this);
+        }
+
+        private void ColorComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) {
+            if (ColorComboBox.SelectedItem is not ComboBoxItem item || !item.Content.ToString()!.StartsWith("Custom")) {
+                return;
+            }
+
+            // Open OUR Custom Color Picker
+            ColorPickerWindow picker = new() {
+                Owner = this
+            };
+
+            if (picker.ShowDialog() != true) {
+                return;
+            }
+
+            // Get the color
+            Color c = picker.SelectedColor;
+
+            // Format as Hex
+            _customColorHex = $"#{c.R:X2}{c.G:X2}{c.B:X2}";
+
+
+
+            // Update the item text
+            item.Content = $"{_customColorHex}";
+        }
+        private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e) {
+            if (e.ChangedButton == MouseButton.Left) {
+                DragMove();
+            }
+        }
+
+        private void MinimizeButton_Click(object sender, RoutedEventArgs e) {
+            WindowState = WindowState.Minimized;
+        }
+
+        private void CloseButton_Click(object sender, RoutedEventArgs e) {
+            Close();
         }
     }
 }

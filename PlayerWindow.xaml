@@ -11,7 +11,7 @@
         </Grid.RowDefinitions>
 
         <Viewbox Grid.Row="0" Stretch="Uniform" Margin="0">
-            <TextBlock x:Name="TxtDisplay" 
+            <TextBlock x:Name="DisplayText" 
                        FontFamily="Consolas, Courier New, Monospace" 
                        Foreground="White"
                        FontWeight="Bold"
@@ -27,15 +27,14 @@
             </Border.Background>
 
             <StackPanel>
-                <Slider x:Name="SldProgress"
+                <Slider x:Name="ProgressSlider"
                         Style="{StaticResource ModernSlider}"
                         Minimum="0"
                         Maximum="100" 
                         Value="0"
                         Margin="0,0,0,15"
-                        IsMoveToPointEnabled="True"
-                        Thumb.DragStarted="SldProgress_DragStarted"
-                        Thumb.DragCompleted="SldProgress_DragCompleted"/>
+                        Thumb.DragStarted="ProgressSlider_DragStarted"
+                        Thumb.DragCompleted="ProgressSlider_DragCompleted"/>
 
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -44,12 +43,12 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <Button Grid.Column="0" x:Name="BtnPlayPause" 
+                    <Button Grid.Column="0" x:Name="PlayPauseButton" 
                             Style="{StaticResource GradientRoundedButtonStyle}"
                             Width="80" 
                             Height="38" 
-                            Click="BtnPlayPause_Click">
-                        <Path x:Name="IconPlayButton"
+                            Click="PlayPauseButton_Click">
+                        <Path x:Name="PlayButtonIcon"
                               Data="{StaticResource PauseIcon}"
                               Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                               Stretch="Uniform" Height="14" Width="14"/>
@@ -63,7 +62,7 @@
                                 Width="50"
                                 Click="FullScreenButton_OnClick"
                                 Margin="0,0,15,0">
-                            <Path x:Name="IconFullScreen"
+                            <Path x:Name="FullScreenIcon"
                                   Data="{StaticResource FullScreenIcon}"
                                   Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                   Stretch="Uniform" Width="14" Height="14"/>
@@ -74,14 +73,14 @@
                                    VerticalAlignment="Center" 
                                    Margin="0,0,10,0"/>
 
-                        <Slider x:Name="SldVolume" 
+                        <Slider x:Name="VolumeSlider" 
                                 Style="{StaticResource ModernSlider}"
                                 Minimum="0" 
                                 Maximum="1" 
                                 Value="0.5" 
                                 Width="100" 
                                 VerticalAlignment="Center"
-                                ValueChanged="SldVolume_ValueChanged"/>
+                                ValueChanged="VolumeSlider_ValueChanged"/>
                     </StackPanel>
                 </Grid>
             </StackPanel>

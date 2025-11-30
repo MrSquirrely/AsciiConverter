@@ -25,17 +25,17 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <TextBlock x:Name="TxtTitle" Text="Notification" 
+            <TextBlock x:Name="TitleText" Text="Notification" 
                        Foreground="#DDD" FontWeight="Bold" 
                        VerticalAlignment="Center" Margin="10,0,0,0"/>
 
-            <Button x:Name="BtnClose" HorizontalAlignment="Right" Width="30" Height="30" 
+            <Button Grid.Row="0" x:Name="CloseButton" HorizontalAlignment="Right" Width="30" Height="30" 
                     Background="Transparent" BorderThickness="0" 
                     Foreground="White" FontWeight="Bold" Content="✕" 
-                    Click="BtnCancel_Click" Cursor="Hand"/>
+                    Click="CloseButton_Click" Cursor="Hand"/>
 
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="15,10,15,10">
-                <TextBlock x:Name="TxtMessage" 
+                <TextBlock x:Name="MessageText" 
                            Text="Your message goes here..." 
                            Style="{StaticResource ModernTextBlock}" 
                            TextWrapping="Wrap" 
@@ -46,15 +46,15 @@
 
             <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,15">
 
-                <Button x:Name="BtnOk" Content="OK" 
+                <Button x:Name="OkButton" Content="OK" 
                         Style="{StaticResource GradientRoundedButtonStyle}" 
                         Width="100" Height="35" Margin="5" 
-                        Click="BtnOk_Click"/>
+                        Click="OkButton_Click"/>
 
-                <Button x:Name="BtnCancel" Content="Cancel" 
+                <Button x:Name="CancelButton" Content="Cancel" 
                         Style="{StaticResource GradientRoundedButtonStyle}" 
                         Width="100" Height="35" Margin="5" 
-                        Click="BtnCancel_Click" 
+                        Click="CloseButton_Click" 
                         Visibility="Collapsed"/>
 
             </StackPanel>

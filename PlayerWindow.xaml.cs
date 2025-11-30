@@ -29,9 +29,7 @@ namespace AsciiConverter {
             Loaded += PlayerWindow_Loaded;
         }
 
-        private void PlayerWindow_Loaded(object sender, RoutedEventArgs e) {
-            LoadProject(_jsonPathToLoad);
-        }
+        private void PlayerWindow_Loaded(object sender, RoutedEventArgs e) => LoadProject(_jsonPathToLoad);
 
         // 1. Change the constructor/loader to accept the .asciiv file path
         private void LoadProject(string filePath) {
@@ -39,10 +37,6 @@ namespace AsciiConverter {
                 // Check if it's our new Single File format
                 if (Path.GetExtension(filePath) == ".asciiv") {
                     LoadSingleFile(filePath);
-                }
-                else {
-                    // Fallback to old JSON method (optional, or you can remove the old logic)
-                    //LoadJsonProject(filePath);
                 }
             }
             catch (Exception ex) {
@@ -66,10 +60,10 @@ namespace AsciiConverter {
 
                 try {
                     Color color = (Color)ColorConverter.ConvertFromString(colorName);
-                    TxtDisplay.Foreground = new SolidColorBrush(color);
+                    DisplayText.Foreground = new SolidColorBrush(color);
                 }
                 catch {
-                    TxtDisplay.Foreground = Brushes.White;
+                    DisplayText.Foreground = Brushes.White;
                 }
 
                 // C. Read Audio
@@ -100,11 +94,11 @@ namespace AsciiConverter {
             }
 
             // E. Final Setup
-            _mediaPlayer.Volume = SldVolume.Value;
+            _mediaPlayer.Volume = VolumeSlider.Value;
             string videoName = Path.GetFileNameWithoutExtension(filePath);
             Title = $"{videoName} - {_frames.Length} Frames";
 
-            if (_frames != null) SldProgress.Maximum = _frames.Length - 1;
+            if (_frames != null) ProgressSlider.Maximum = _frames.Length - 1;
 
             StartSyncPlayback();
         }
@@ -146,11 +140,11 @@ namespace AsciiConverter {
                 int frameIndex = (int)(currentTime.TotalSeconds * _projectData!.FramesPerSecond);
 
                 if (frameIndex < _frames!.Length) {
-                    TxtDisplay.Text = _frames[frameIndex].TrimEnd();
+                    DisplayText.Text = _frames[frameIndex].TrimEnd();
 
                     // Only update slider if user isn't holding it
                     if (!_isDragging) {
-                        SldProgress.Value = frameIndex;
+                        ProgressSlider.Value = frameIndex;
                     }
                 }
                 else {
@@ -161,22 +155,22 @@ namespace AsciiConverter {
 
                     if (_hasAudio) _mediaPlayer.Stop();
 
-                    BtnPlayPause.Content = "Play";
-                    SldProgress.Value = 0;
+                    PlayPauseButton.Content = "Play";
+                    ProgressSlider.Value = 0;
                 }
 
                 await Task.Delay(16);
             }
         }
 
-        private void SldProgress_DragStarted(object sender, System.Windows.Controls.Primitives.DragStartedEventArgs e) {
+        private void ProgressSlider_DragStarted(object sender, System.Windows.Controls.Primitives.DragStartedEventArgs e) {
             _isDragging = true;
         }
 
-        private void SldProgress_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e) {
+        private void ProgressSlider_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e) {
             _isDragging = false;
 
-            int newFrameIndex = (int)SldProgress.Value;
+            int newFrameIndex = (int)ProgressSlider.Value;
             double newTimeInSeconds = newFrameIndex / _projectData!.FramesPerSecond;
             TimeSpan newTime = TimeSpan.FromSeconds(newTimeInSeconds);
 
@@ -195,27 +189,27 @@ namespace AsciiConverter {
 
             // Force update the visual frame immediately
             if (newFrameIndex < _frames!.Length) {
-                TxtDisplay.Text = _frames[newFrameIndex].TrimEnd();
+                DisplayText.Text = _frames[newFrameIndex].TrimEnd();
             }
         }
 
-        private void BtnPlayPause_Click(object sender, RoutedEventArgs e) {
+        private void PlayPauseButton_Click(object sender, RoutedEventArgs e) {
             if (_isPaused) {
                 _isPaused = false;
                 _stopwatch.Start();
                 if (_hasAudio) _mediaPlayer.Play();
-                IconPlayButton.Data = (Geometry)FindResource("PauseIcon");
+                PlayButtonIcon.Data = (Geometry)FindResource("PauseIcon");
             }
             else {
                 _isPaused = true;
                 _stopwatch.Stop();
                 if (_hasAudio) _mediaPlayer.Pause();
-                IconPlayButton.Data = (Geometry)FindResource("PlayIcon");
+                PlayButtonIcon.Data = (Geometry)FindResource("PlayIcon");
             }
         }
 
-        private void SldVolume_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) {
-            _mediaPlayer.Volume = SldVolume.Value;
+        private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) {
+            _mediaPlayer.Volume = VolumeSlider.Value;
         }
 
         protected override void OnClosed(EventArgs e) {
@@ -230,13 +224,13 @@ namespace AsciiConverter {
                 ResizeMode = ResizeMode.CanResize;
                 WindowState = WindowState.Normal;
                 WindowStyle = WindowStyle.SingleBorderWindow;
-                IconFullScreen.Data = (Geometry)FindResource("FullScreenIcon");
+                FullScreenIcon.Data = (Geometry)FindResource("FullScreenIcon");
             }
             else {
                 ResizeMode = ResizeMode.NoResize;
                 WindowState = WindowState.Maximized;
                 WindowStyle = WindowStyle.None;
-                IconFullScreen.Data = (Geometry)FindResource("ExitFullScreenIcon");
+                FullScreenIcon.Data = (Geometry)FindResource("ExitFullScreenIcon");
             }
         }
     }

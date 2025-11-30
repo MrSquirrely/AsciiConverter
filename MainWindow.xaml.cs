@@ -26,8 +26,11 @@ namespace AsciiConverter {
         // Stores the specific file created by the last conversion so "Play" works correctly
         private string _lastCreatedFilePath = string.Empty;
 
-        // The ASCII ramp: characters sorted from Darkest (@) to Lightest (space)
-        private readonly char[] _asciiChars = ['@', '%', '#', '*', '+', '=', '-', ':', '.', ' '];
+        // The ASCII ramp: characters sorted from Darkest (@) to Lightest (space) 
+        private readonly char[] _standardChars = new string("@%#*+=-:. ").ToCharArray();
+        private readonly char[] _highDetailChars = new string("$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\\\|()1{}[]?-_+~<>i!lI;:,\\\"^`' ").ToCharArray();
+        private readonly char[] _blockChars = new string("█▓▒░ ").ToCharArray();
+        private readonly char[] _binaryChars = new string("01").ToCharArray();
 
         public MainWindow() {
             InitializeComponent();
@@ -48,7 +51,7 @@ namespace AsciiConverter {
             }
         }
 
-        private void BtnLoad_Click(object sender, RoutedEventArgs e) {
+        private void LoadButton_Click(object sender, RoutedEventArgs e) {
             OpenFileDialog openFileDialog = new() {
                 Filter = "Video Files|*.mp4;*.avi;*.mov"
             };
@@ -57,52 +60,54 @@ namespace AsciiConverter {
 
             if (result != true) return;
             _inputVideoPath = openFileDialog.FileName;
-            TxtStatus.Text = "Video loaded: " + Path.GetFileName(_inputVideoPath);
+            StatusText.Text = "Video loaded: " + Path.GetFileName(_inputVideoPath);
 
-            TxtProjectName.Text = Path.GetFileNameWithoutExtension(_inputVideoPath);
+            ProjectNameText.Text = Path.GetFileNameWithoutExtension(_inputVideoPath);
 
-            BtnConvert.IsEnabled = true;
+            ConvertButton.IsEnabled = true;
         }
 
-        private async void BtnConvert_Click(object sender, RoutedEventArgs e) {
+        private async void ConvertButton_Click(object sender, RoutedEventArgs e) {
             try {
                 if (string.IsNullOrEmpty(_inputVideoPath)) return;
 
                 // 1. Get and Sanitize Project Name
-                string rawName = TxtProjectName.Text.Trim();
+                string rawName = ProjectNameText.Text.Trim();
                 if (string.IsNullOrEmpty(rawName)) rawName = "OutputVideo";
 
                 // Remove characters that are illegal in file names (like \ / : * ? " < > |)
                 char[] invalidChars = Path.GetInvalidFileNameChars();
                 string projectName = string.Join("_", rawName.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
 
-                BtnConvert.IsEnabled = false;
-                BtnLoad.IsEnabled = false;
-                TxtStatus.Text = "Converting... Please wait.";
+                ConvertButton.IsEnabled = false;
+                LoadButton.IsEnabled = false;
+                StatusText.Text = "Converting... Please wait.";
 
                 // Capture the UI state HERE (on the main thread)
                 bool useBitCrush = BitCrushCheck.IsChecked == true;
-                bool convertToMp4 = ToMp4.IsChecked == true;
+                bool convertToMp4 = ToMp4Check.IsChecked == true;
 
-                string selectedColor = ((ComboBoxItem)CmbColor.SelectedItem).Content.ToString()!;
+                string selectedColor = ((ComboBoxItem)ColorComboBox.SelectedItem).Content.ToString()!;
+                int selectedTextStyle = TextStyleComboBox.SelectedIndex;
+                int videoWidth = (int)VideoWidthSlider.Value;
 
                 // Pass the custom 'projectName' to the background task
-                await Task.Run(() => ConvertVideoToAscii(_inputVideoPath, useBitCrush, convertToMp4, selectedColor, projectName));
+                await Task.Run(() => ConvertVideoToAscii(_inputVideoPath, useBitCrush, convertToMp4, selectedColor, projectName, selectedTextStyle, videoWidth));
 
-                TxtStatus.Text = "Conversion Complete!";
-                BtnConvert.IsEnabled = true;
-                BtnLoad.IsEnabled = true;
+                StatusText.Text = "Conversion Complete!";
+                ConvertButton.IsEnabled = true;
+                LoadButton.IsEnabled = true;
             }
             catch (Exception ex) {
                 Debug.WriteLine(ex.Message);
-                TxtStatus.Text = "Error: " + ex.Message;
-                BtnConvert.IsEnabled = true;
-                BtnLoad.IsEnabled = true;
+                StatusText.Text = "Error: " + ex.Message;
+                ConvertButton.IsEnabled = true;
+                LoadButton.IsEnabled = true;
             }
         }
 
         // Updated signature to accept projectName
-        private async Task ConvertVideoToAscii(string videoPath, bool isBitCrushed, bool toMp4, string colorName, string projectName) {
+        private async Task ConvertVideoToAscii(string videoPath, bool isBitCrushed, bool toMp4, string colorName, string projectName, int selectedTextStyle, int videoWidth) {
             // 1. Setup Paths
             string projectFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Output");
             Directory.CreateDirectory(projectFolder);
@@ -170,12 +175,11 @@ namespace AsciiConverter {
                 while (capture.Read(frame)) {
                     if (frame.Empty()) break;
 
-                    const int newWidth = 150;
                     double aspectRatio = (double)frame.Height / frame.Width;
-                    int newHeight = (int)(newWidth * aspectRatio * 0.5);
+                    int newHeight = (int)(videoWidth * aspectRatio * 0.5);
 
                     Mat resizedFrame = new();
-                    Cv2.Resize(frame, resizedFrame, new OpenCvSharp.Size(newWidth, newHeight));
+                    Cv2.Resize(frame, resizedFrame, new OpenCvSharp.Size(videoWidth, newHeight));
 
                     Mat grayFrame = new();
                     Cv2.CvtColor(resizedFrame, grayFrame, ColorConversionCodes.BGR2GRAY);
@@ -184,8 +188,28 @@ namespace AsciiConverter {
                     for (int y = 0; y < grayFrame.Height; y++) {
                         for (int x = 0; x < grayFrame.Width; x++) {
                             byte pixelValue = grayFrame.At<byte>(y, x);
-                            int charIndex = MapPixelToCharIndex(pixelValue);
-                            sb.Append(_asciiChars[charIndex]);
+                            int charIndex;
+                            switch (selectedTextStyle) {
+                                case 1:
+                                    charIndex = MapPixelToCharIndex(pixelValue, _binaryChars);
+                                    sb.Append(_binaryChars[charIndex]);
+                                    break;
+                                case 2:
+                                    charIndex = MapPixelToCharIndex(pixelValue, _highDetailChars);
+                                    sb.Append(_highDetailChars[charIndex]);
+                                    break;
+                                case 3:
+                                    charIndex = MapPixelToCharIndex(pixelValue, _blockChars);
+                                    sb.Append(_blockChars[charIndex]);
+                                    break;
+                                case 0: //Leave this here
+                                default:
+                                    charIndex = MapPixelToCharIndex(pixelValue, _standardChars);
+                                    sb.Append(_standardChars[charIndex]);
+                                    break;
+
+                            }
+
                         }
                         sb.AppendLine();
                     }
@@ -197,7 +221,7 @@ namespace AsciiConverter {
                     int currentProgress = (int)((double)currentFrameIndex / totalFrames * 100);
                     if (currentProgress <= lastProgress) continue;
                     lastProgress = currentProgress;
-                    Application.Current.Dispatcher.Invoke(() => ProgBar.Value = currentProgress);
+                    Application.Current.Dispatcher.Invoke(() => ConvertProgressBar.Value = currentProgress);
                 }
 
                 capture.Release();
@@ -212,7 +236,7 @@ namespace AsciiConverter {
                 ColorName = colorName
             };
 
-            string jsonString = JsonSerializer.Serialize(project, new JsonSerializerOptions { WriteIndented = true });
+            string jsonString = JsonSerializer.Serialize(project, options: new JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(fullJsonPath, jsonString);
 
             // 6. PACK EVERYTHING using the custom Project Name
@@ -241,7 +265,7 @@ namespace AsciiConverter {
             }
 
             Application.Current.Dispatcher.Invoke(() => {
-                CustomMessageBox.Show($"Conversion Complete! Saved single file:\n{singleFilePath}", "Success", CustomMessageBox.MessageBoxType.Ok,this);
+                CustomMessageBox.Show($"Conversion Complete! Saved single file:\n{singleFilePath}", "Success", CustomMessageBox.MessageBoxType.Ok, this);
             });
         }
 
@@ -309,7 +333,7 @@ namespace AsciiConverter {
 
                         Application.Current.Dispatcher.Invoke(() => {
                             CustomMessageBox.Show("MP4 Render Complete!\nSaved to: " + outputMp4, "Render Done", CustomMessageBox.MessageBoxType.Ok, this);
-                            TxtStatus.Text = "Done.";
+                            StatusText.Text = "Done.";
                         });
                     }
                     catch (Exception ex) {
@@ -322,7 +346,7 @@ namespace AsciiConverter {
             }
         }
 
-        private void BtnPlay_Click(object sender, RoutedEventArgs e) {
+        private void PlayButton_Click(object sender, RoutedEventArgs e) {
             // Check if we have a file in memory from a recent conversion
             if (!string.IsNullOrEmpty(_lastCreatedFilePath) && File.Exists(_lastCreatedFilePath)) {
                 PlayerWindow player = new(_lastCreatedFilePath);
@@ -330,7 +354,7 @@ namespace AsciiConverter {
             }
             // Fallback: Check if there is a file named after the text box input
             else {
-                string rawName = TxtProjectName.Text.Trim();
+                string rawName = ProjectNameText.Text.Trim();
                 if (!string.IsNullOrEmpty(rawName)) {
                     string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Output", $"{rawName}.asciiv");
                     if (File.Exists(path)) {
@@ -344,13 +368,13 @@ namespace AsciiConverter {
             }
         }
 
-        private int MapPixelToCharIndex(byte pixelValue) {
-            int maxIndex = _asciiChars.Length - 1;
-            int index = (int)((pixelValue / 255.0) * maxIndex);
+        private int MapPixelToCharIndex(byte pixelValue, char[] asciiChars) {
+            int maxIndex = asciiChars.Length - 1;
+            int index = (int)(pixelValue / 255.0 * maxIndex);
             return index;
         }
 
-        private void ToMp4_Checked(object sender, RoutedEventArgs e) {
+        private void ToMp4Check_Checked(object sender, RoutedEventArgs e) {
             CustomMessageBox.Show(
                 "Warning: Creating an MP4 file is a slow process.\n\n" +
                 "Depending on the video length, this could take several minutes to render frame-by-frame.",

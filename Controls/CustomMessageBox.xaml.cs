@@ -13,8 +13,8 @@ namespace AsciiConverter {
         public CustomMessageBox(string message, string title, MessageBoxType type) {
             InitializeComponent();
 
-            TxtMessage.Text = message;
-            TxtTitle.Text = title;
+            MessageText.Text = message;
+            TitleText.Text = title;
 
             switch (type) {
                 case MessageBoxType.Ok:
@@ -25,9 +25,9 @@ namespace AsciiConverter {
                     // 2. Set Text to Dark
                     SetLightAppearance();
 
-                    BtnOk.Visibility = Visibility.Visible;
-                    BtnCancel.Visibility = Visibility.Collapsed;
-                    BtnOk.Content = "OK";
+                    OkButton.Visibility = Visibility.Visible;
+                    CancelButton.Visibility = Visibility.Collapsed;
+                    OkButton.Content = "OK";
                     break;
 
                 case MessageBoxType.Warning:
@@ -38,19 +38,19 @@ namespace AsciiConverter {
                     // 2. Set Text to Dark
                     SetLightAppearance();
 
-                    BtnOk.Visibility = Visibility.Visible;
-                    BtnCancel.Visibility = Visibility.Collapsed;
-                    BtnOk.Content = "OK";
+                    OkButton.Visibility = Visibility.Visible;
+                    CancelButton.Visibility = Visibility.Collapsed;
+                    OkButton.Content = "OK";
                     break;
 
                 case MessageBoxType.Confirmation:
                     // Keep the default Dark Gradient (defined in XAML)
                     // Text is already White by default
 
-                    BtnOk.Visibility = Visibility.Visible;
-                    BtnCancel.Visibility = Visibility.Visible;
-                    BtnOk.Content = "Yes";
-                    BtnCancel.Content = "No";
+                    OkButton.Visibility = Visibility.Visible;
+                    CancelButton.Visibility = Visibility.Visible;
+                    OkButton.Content = "Yes";
+                    CancelButton.Content = "No";
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(type), type, null);
@@ -61,27 +61,26 @@ namespace AsciiConverter {
             // Change text color to dark gray for readability on light backgrounds
             SolidColorBrush darkBrush = new SolidColorBrush(Color.FromRgb(30, 30, 30));
 
-            TxtTitle.Foreground = darkBrush;
-            TxtMessage.Foreground = darkBrush;
-            BtnClose.Foreground = darkBrush;
+            TitleText.Foreground = darkBrush;
+            MessageText.Foreground = darkBrush;
+            CloseButton.Foreground = darkBrush;
 
             // Remove the drop shadow effect from text (looks cleaner on flat light bg)
-            TxtTitle.Effect = null;
-            TxtMessage.Effect = null;
+            TitleText.Effect = null;
+            MessageText.Effect = null;
         }
 
         public static bool? Show(string message, string title = "Info", MessageBoxType type = MessageBoxType.Ok, Window? owner = null) {
-            CustomMessageBox msg = new CustomMessageBox(message, title, type);
-            msg.Owner = owner ?? Application.Current.MainWindow;
+            CustomMessageBox msg = new(message, title, type) { Owner = owner ?? Application.Current.MainWindow };
             return msg.ShowDialog();
         }
 
-        private void BtnOk_Click(object sender, RoutedEventArgs e) {
+        private void OkButton_Click(object sender, RoutedEventArgs e) {
             DialogResult = true;
             Close();
         }
 
-        private void BtnCancel_Click(object sender, RoutedEventArgs e) {
+        private void CloseButton_Click(object sender, RoutedEventArgs e) {
             DialogResult = false;
             Close();
         }

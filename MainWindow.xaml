@@ -34,23 +34,23 @@
 
         <TextBlock Grid.Row="0" Text="1. Select a Video File" Style="{StaticResource ModernTextBlock}" Margin="0,0,0,10"/>
 
-        <Button Grid.Row="1" x:Name="BtnLoad" Style="{StaticResource GradientRoundedButtonStyle}" 
-                Content="Load Video" Click="BtnLoad_Click" Height="40" Margin="0,0,0,10"/>
+        <Button Grid.Row="1" x:Name="LoadButton" Style="{StaticResource GradientRoundedButtonStyle}" 
+                Content="Load Video" Click="LoadButton_Click" Height="40" Margin="0,0,0,10"/>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,5,0,0">
             <Label Content="Project Name:" FontWeight="SemiBold" VerticalAlignment="Center" Width="110" Foreground="White" FontSize="14"/>
-            <TextBox x:Name="TxtProjectName" Height="30" VerticalContentAlignment="Center" Width="200" Padding="5,0"/>
+            <TextBox x:Name="ProjectNameText" Height="30" VerticalContentAlignment="Center" Width="200" Padding="5,0"/>
         </StackPanel>
 
         <TextBlock Grid.Row="4" Text="2. Configure Output" Style="{StaticResource ModernTextBlock}" Margin="0,0,0,10"/>
 
         <WrapPanel Grid.Row="5" Margin="0,0,0,15" Orientation="Horizontal">
             <CheckBox Name="BitCrushCheck" Content="Crush Audio" IsChecked="True" Style="{StaticResource ModernCheckBox}" Margin="0,0,20,0"/>
-            <CheckBox Name="ToMp4" Content="Create MP4" IsChecked="False" Style="{StaticResource ModernCheckBox}" Margin="0,0,20,0" Checked="ToMp4_Checked"/>
+            <CheckBox Name="ToMp4Check" Content="Create MP4" IsChecked="False" Style="{StaticResource ModernCheckBox}" Margin="0,0,20,0" Checked="ToMp4Check_Checked"/>
 
             <StackPanel Orientation="Horizontal">
                 <Label Content="Color:" VerticalAlignment="Center" Padding="0,5,10,5" Foreground="White" FontSize="14" FontWeight="SemiBold"/>
-                <ComboBox x:Name="CmbColor" Width="120" SelectedIndex="0" VerticalAlignment="Center" Style="{StaticResource ModernComboBox}">
+                <ComboBox x:Name="ColorComboBox" Width="120" SelectedIndex="0" VerticalAlignment="Center" Style="{StaticResource ModernComboBox}">
                     <ComboBoxItem Content="White"/>
                     <ComboBoxItem Content="Lime"/>
                     <ComboBoxItem Content="Red"/>
@@ -60,18 +60,34 @@
             </StackPanel>
         </WrapPanel>
 
-        <Button Grid.Row="7" x:Name="BtnConvert" Style="{StaticResource GradientRoundedButtonStyle}" 
-                Content="Convert &amp; Save" Click="BtnConvert_Click" Height="45" IsEnabled="False" Margin="0,0,0,15"/>
+        <WrapPanel Grid.Row="6" Orientation="Horizontal">
+            <StackPanel Orientation="Horizontal">
+                <Label Content="Text Style:" VerticalAlignment="Center" Padding="0,5,10,5" Foreground="White" FontSize="14" FontWeight="SemiBold"/>
+                <ComboBox x:Name="TextStyleComboBox" Width="120" SelectedIndex="0" VerticalAlignment="Center" Style="{StaticResource ModernComboBox}">
+                    <ComboBoxItem Content="Standard"/>
+                    <ComboBoxItem Content="Binary"/>
+                    <ComboBoxItem Content="High Detail"/>
+                    <ComboBoxItem Content="Blocks"/>
+                </ComboBox>
+                <Label Content="Video Width:" VerticalAlignment="Center" Padding="5,5,10,5" Foreground="White" FontSize="14" FontWeight="SemiBold"/>
+                <Slider x:Name="VideoWidthSlider" Style="{StaticResource ModernSlider}" 
+                        Minimum="50" Maximum="550" Value="150" Margin="5,0,0,0" Width="200">
+                </Slider>
+            </StackPanel>
+        </WrapPanel>
 
-        <TextBlock Grid.Row="8" x:Name="TxtStatus" Text="Ready" 
+        <Button Grid.Row="7" x:Name="ConvertButton" Style="{StaticResource GradientRoundedButtonStyle}" 
+                Content="Convert &amp; Save" Click="ConvertButton_Click" Height="45" IsEnabled="False" Margin="0,0,0,15"/>
+
+        <TextBlock Grid.Row="8" x:Name="StatusText" Text="Ready" 
                    Style="{StaticResource ModernTextBlock}"
                    VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,15"/>
 
-        <ProgressBar Grid.Row="9" x:Name="ProgBar" Style="{StaticResource RainbowProgressStyle}" 
+        <ProgressBar Grid.Row="9" x:Name="ConvertProgressBar" Style="{StaticResource RainbowProgressStyle}" 
                      Height="15" Minimum="0" Maximum="100" Margin="0,0,0,15"/>
 
-        <Button Grid.Row="10" x:Name="BtnPlay" Style="{StaticResource GradientRoundedButtonStyle}" 
-                Content="Play Last Output" Click="BtnPlay_Click" Height="40"/>
+        <Button Grid.Row="10" x:Name="PlayButton" Style="{StaticResource GradientRoundedButtonStyle}" 
+                Content="Play Last Output" Click="PlayButton_Click" Height="40"/>
 
     </Grid>
 </Window>

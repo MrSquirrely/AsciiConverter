@@ -22,4 +22,12 @@
     <PackageReference Include="Xabe.FFmpeg.Downloader" Version="6.0.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EditorConfigFiles Remove="D:\Repos\AsciiConverter\AsciiConverter\.editorconfig" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="D:\Repos\AsciiConverter\AsciiConverter\.editorconfig" />
+  </ItemGroup>
+
 </Project>

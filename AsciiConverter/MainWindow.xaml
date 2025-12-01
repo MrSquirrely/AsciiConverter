@@ -11,6 +11,7 @@
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
+        Loaded="MainWindow_Loaded"
         FontFamily="{StaticResource  PixelatedEleganceFont}">
 
     <Border CornerRadius="10" BorderThickness="2" BorderBrush="{StaticResource MainGradientBrush}">
@@ -88,6 +89,18 @@
                            Foreground="White" FontSize="14"/>
                     <TextBox x:Name="ProjectNameText" Width="250" 
                              Style="{StaticResource ModernTextBox}"/>
+                    <Label Content="Font:" VerticalAlignment="Center" 
+                           Padding="5,5,10,5" Foreground="White" 
+                           FontSize="14" FontWeight="SemiBold"/>
+                    <ComboBox x:Name="FontComboBox" SelectedIndex="0" 
+                              Width="230"
+                              VerticalAlignment="Center" 
+                              Style="{StaticResource ModernComboBox}"
+                              >
+                        <ComboBoxItem Content="Pixelated Elegance" FontFamily="{StaticResource PixelatedEleganceFont}"/>
+                        <ComboBoxItem Content="First time writing!" FontFamily="{StaticResource FirstTimeWritingFont}"/>
+                        <ComboBoxItem Content="AVA" FontFamily="{StaticResource AvaFont}"/>
+                    </ComboBox>
                 </StackPanel>
 
                 <TextBlock Grid.Row="4" Text="2. Configure Output" 
@@ -106,15 +119,23 @@
                                FontSize="14" FontWeight="SemiBold"/>
                         <ComboBox x:Name="ColorComboBox" Width="140" SelectedIndex="0" 
                                   VerticalAlignment="Center" 
-                                  Style="{StaticResource ModernComboBox}"
-                                  SelectionChanged="ColorComboBox_SelectionChanged">
+                                  Style="{StaticResource ModernComboBox}">
                             <ComboBoxItem Content="White"/>
                             <ComboBoxItem Content="Lime"/>
                             <ComboBoxItem Content="Red"/>
                             <ComboBoxItem Content="Cyan"/>
                             <ComboBoxItem Content="Yellow"/>
-                            <ComboBoxItem Content="Custom..."/>
                         </ComboBox>
+                        <Button x:Name="CustomColorButton" 
+                                Click="CustomColorButton_OnClick" Width="40" Height="40"
+                                ToolTip="Pick Custom Color"
+                                Margin="10,0"
+                                Style="{StaticResource GradientRoundedButtonStyle}">
+                            <Path x:Name="PlayButtonIcon"
+                                  Data="{StaticResource ColorPickerIcon}"
+                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  Stretch="Uniform" Height="14" Width="14"/>
+                        </Button>
                     </StackPanel>
                 </WrapPanel>
 
@@ -129,6 +150,8 @@
                             <ComboBoxItem Content="Binary"/>
                             <ComboBoxItem Content="High Detail"/>
                             <ComboBoxItem Content="Blocks"/>
+                            <ComboBoxItem Content="Glitch"/>
+                            <ComboBoxItem Content="Optimized"/>
                         </ComboBox>
 
                         <Label Content="Video Width:" VerticalAlignment="Center" 

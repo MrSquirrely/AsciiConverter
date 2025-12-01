@@ -1,13 +1,9 @@
-﻿using ASCIIV.Core.Controls;
-using ASCIIV.Core;
+﻿using ASCIIV.Core;
+using ASCIIV.Core.Controls;
 using ASCIIV.Player;
-
 using Microsoft.Win32;
-
 using NAudio.Wave;
-
 using OpenCvSharp;
-
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -16,7 +12,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-
 using Xabe.FFmpeg;
 using Xabe.FFmpeg.Downloader;
 
@@ -33,17 +28,53 @@ namespace ASCIIV.Converter {
         private string _lastCreatedFilePath = string.Empty;
 
         // The ASCII ramp: characters sorted from Darkest (@) to Lightest (space) 
-        private readonly char[] _standardChars = new string("@%#*+=-:. ").ToCharArray();
-        private readonly char[] _highDetailChars = new string("$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\\\|()1{}[]?-_+~<>i!lI;:,\\\"^`' ").ToCharArray();
-        private readonly char[] _blockChars = new string("█▓▒░ ").ToCharArray();
-        private readonly char[] _binaryChars = new string("01").ToCharArray();
+        private readonly char[] _standardRamp = new string("@%#*+=-:. ").ToCharArray();
+        private readonly char[] _highDetailRamp = new string("$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\\\|()1{}[]?-_+~<>i!lI;:,\\\"^`' ").ToCharArray();
+        private readonly char[] _blockRamp = new string("█▓▒░ ").ToCharArray();
+        private readonly char[] _binaryRamp = new string("01").ToCharArray();
+        private readonly char[] _glitchRamp = "@%#*+=~-:,. ".ToCharArray();
+        private readonly char[] _optimizedRamp = "@&%QWNM0gB$#DR8mHXKAUbGOpV4d9h6PkqwSE2]ayjxY5Zoen[ult13If}C{iF|(|7J)vTLs?z/*cr!+<>;=^,_:'-. ".ToCharArray();
 
         // Default to White in case they select Custom but cancel the dialog
         private static string _customColorHex = "#FFFFFF";
 
+
         public MainWindow() {
             InitializeComponent();
+        }
+
+        private void MainWindow_Loaded(object sender, RoutedEventArgs e) {
+            // 1. Check for "Protected Folder" status
+            if (!HasWritePermission()) {
+                CustomMessageBox.Show(
+                    "The application is running in a protected folder (e.g., Program Files) " +
+                    "and cannot save necessary files.\n\n" +
+                    "Please move the application to a writable location like your Desktop or Documents.",
+                    "Permission Denied",
+                    CustomMessageBox.MessageBoxType.Warning,
+                    this);
+
+                Application.Current.Shutdown();
+                return;
+            }
+
+            // 2. Safe to initialize
             InitializeFFmpeg();
+        }
+        private bool HasWritePermission() {
+            try {
+                // Try to create and delete a temporary file in the app's folder
+                string testPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".perm_test");
+                File.WriteAllText(testPath, "test");
+                File.Delete(testPath);
+                return true;
+            }
+            catch (UnauthorizedAccessException) {
+                return false;
+            }
+            catch (Exception) {
+                return false;
+            }
         }
 
         private static async void InitializeFFmpeg() {
@@ -95,25 +126,27 @@ namespace ASCIIV.Converter {
                 // Capture the UI state HERE (on the main thread)
                 bool useBitCrush = BitCrushCheck.IsChecked == true;
                 bool convertToMp4 = ToMp4Check.IsChecked == true;
-                string selectedColor = ((ComboBoxItem)ColorComboBox.SelectedItem).Content.ToString()!;
+                string selectedColor = ColorComboBox.SelectedItem is ComboBoxItem item ? item.Content.ToString()! : _customColorHex;
                 int videoWidth = (int)VideoWidthSlider.Value;
                 string styleText = TextStyleComboBox.Text;
                 char[] selectedRamp = styleText switch {
-                    "Standard" => _standardChars,
-                    "Binary" => _binaryChars,
-                    "High Detail" => _highDetailChars,
-                    "Blocks" => _blockChars,
-                    _ => string.IsNullOrEmpty(styleText) ? _standardChars : styleText.ToCharArray()
+                    "Standard" => _standardRamp,
+                    "Binary" => _binaryRamp,
+                    "High Detail" => _highDetailRamp,
+                    "Blocks" => _blockRamp,
+                    "Glitch" => _glitchRamp,
+                    "Optimized" => _optimizedRamp,
+                    _ => string.IsNullOrEmpty(styleText) ? _standardRamp : styleText.ToCharArray()
                 };
 
                 // Pass the custom 'projectName' to the background task
                 await Task.Run(() => ConvertVideoToAscii(
-                    _inputVideoPath, 
-                    useBitCrush, 
-                    convertToMp4, 
-                    selectedColor, 
-                    projectName, 
-                    selectedRamp, 
+                    _inputVideoPath,
+                    useBitCrush,
+                    convertToMp4,
+                    selectedColor,
+                    projectName,
+                    selectedRamp,
                     videoWidth));
 
                 StatusText.Text = "Conversion Complete!";
@@ -223,7 +256,7 @@ namespace ASCIIV.Converter {
                     int currentProgress = (int)((double)currentFrameIndex / totalFrames * 100);
                     if (currentProgress <= lastProgress) continue;
                     lastProgress = currentProgress;
-                    Application.Current.Dispatcher.Invoke(() => ConvertProgressBar.Value = currentProgress);
+                    await Application.Current.Dispatcher.InvokeAsync(() => ConvertProgressBar.Value = currentProgress);
                 }
 
                 capture.Release();
@@ -277,6 +310,7 @@ namespace ASCIIV.Converter {
                 writer.Write(fps);
                 writer.Write(colorName);
 
+
                 if (File.Exists(audioPath)) {
                     byte[] audioBytes = await File.ReadAllBytesAsync(audioPath);
                     writer.Write(audioBytes.Length);
@@ -291,7 +325,7 @@ namespace ASCIIV.Converter {
             await using FileStream textStream = File.OpenRead(asciiPath);
             await textStream.CopyToAsync(fs);
         }
-
+        
         // Updated to accept projectName
         private async void ConvertToMp4(string projectName) {
             try {
@@ -384,31 +418,6 @@ namespace ASCIIV.Converter {
                 CustomMessageBox.MessageBoxType.Warning, this);
         }
 
-        private void ColorComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) {
-            if (ColorComboBox.SelectedItem is not ComboBoxItem item || !item.Content.ToString()!.StartsWith("Custom")) {
-                return;
-            }
-
-            // Open OUR Custom Color Picker
-            ColorPickerWindow picker = new() {
-                Owner = this
-            };
-
-            if (picker.ShowDialog() != true) {
-                return;
-            }
-
-            // Get the color
-            Color c = picker.SelectedColor;
-
-            // Format as Hex
-            _customColorHex = $"#{c.R:X2}{c.G:X2}{c.B:X2}";
-
-
-
-            // Update the item text
-            item.Content = $"{_customColorHex}";
-        }
         private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e) {
             if (e.ChangedButton == MouseButton.Left) {
                 DragMove();
@@ -422,5 +431,21 @@ namespace ASCIIV.Converter {
         private void CloseButton_Click(object sender, RoutedEventArgs e) {
             Close();
         }
+
+        private void CustomColorButton_OnClick(object sender, RoutedEventArgs e) {
+            ColorPickerWindow picker = new() { Owner = this };
+            if (picker.ShowDialog() != true) {
+                return;
+            }
+
+            Color color = picker.SelectedColor;
+            _customColorHex = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+            if (CustomColorButton.Template.FindName("butonBorder", CustomColorButton) is Border swatch) {
+                swatch.Background = new SolidColorBrush(color);
+            }
+
+            ColorComboBox.SelectedIndex = -1;
+        }
+
     }
 }

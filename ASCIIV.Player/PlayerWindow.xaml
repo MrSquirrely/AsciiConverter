@@ -6,6 +6,8 @@
         AllowsTransparency="True"
         Background="Transparent"
         ResizeMode="CanResize"
+        Drop="Window_Drop"
+        AllowDrop="True"
         FontFamily="{StaticResource PixelatedEleganceFont}">
 
     <Border CornerRadius="10" BorderThickness="2" BorderBrush="{StaticResource MainGradientBrush}">
@@ -108,6 +110,17 @@
 
                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
 
+                                <Button x:Name="SnapshotButton"
+                                        Style="{StaticResource GradientRoundedButtonStyle}"
+                                        Height="38" Width="50"
+                                        Click="SnapshotButton_Click"
+                                        Margin="0,0,10,0"
+                                        ToolTip="Save Snapshot">
+                                    <Path Data="{StaticResource CameraIcon}"
+                                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          Stretch="Uniform" Width="16" Height="16"/>
+                                </Button>
+
                                 <Button x:Name="FullScreenButton"
                                         Style="{StaticResource GradientRoundedButtonStyle}"
                                         Height="38" Width="50"
@@ -129,7 +142,9 @@
                                         Minimum="0" Maximum="1" Value="0.5" 
                                         Width="100" 
                                         VerticalAlignment="Center"
-                                        ValueChanged="VolumeSlider_ValueChanged"/>
+                                        ValueChanged="VolumeSlider_ValueChanged"
+                                        AutoToolTipPlacement="TopLeft"
+                                        AutoToolTipPrecision="0"/>
                             </StackPanel>
                         </Grid>
                     </StackPanel>

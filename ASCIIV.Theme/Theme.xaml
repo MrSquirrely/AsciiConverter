@@ -209,9 +209,7 @@
         <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
         <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
         <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
-
         <Setter Property="ItemContainerStyle" Value="{StaticResource ModernComboBoxItemStyle}"/>
-
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ComboBox">
@@ -252,17 +250,16 @@
                         </Border>
 
                         <Popup x:Name="Popup"
-                   Placement="Bottom"
-                   IsOpen="{TemplateBinding IsDropDownOpen}"
-                   AllowsTransparency="True"
-                   Focusable="False"
-                   PopupAnimation="Slide">
+                               Placement="Bottom"
+                               IsOpen="{TemplateBinding IsDropDownOpen}"
+                               Focusable="False"
+                               PopupAnimation="Slide">
                             <Grid MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
                                 <Border x:Name="DropDownBorder"
-                            Background="#F0F0F0"
-                            BorderThickness="1"
-                            BorderBrush="Gray"
-                            CornerRadius="5">
+                                        Background="#F0F0F0"
+                                        BorderThickness="1"
+                                        BorderBrush="Gray"
+                                        CornerRadius="5">
                                     <ScrollViewer SnapsToDevicePixels="True">
                                         <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained" />
                                     </ScrollViewer>
@@ -314,13 +311,35 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ProgressBar">
-                    <Border x:Name="PART_Track" CornerRadius="7" Background="{TemplateBinding Background}" BorderBrush="Gray" BorderThickness="0">
+                    <Grid>
+                        <Border x:Name="PART_Track" CornerRadius="7" Background="{TemplateBinding Background}" BorderBrush="Gray" BorderThickness="0"/>
                         <Decorator x:Name="PART_Indicator" HorizontalAlignment="Left">
                             <Grid ClipToBounds="True">
                                 <Border x:Name="GradientBar" CornerRadius="7" Width="{Binding ActualWidth, ElementName=PART_Track}" Background="{TemplateBinding Foreground}"/>
                             </Grid>
                         </Decorator>
-                    </Border>
+                        <Border x:Name="IndeterminateBar" Visibility="Collapsed" CornerRadius="7" 
+                                Width="150" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}">
+                            <Border.RenderTransform>
+                                <TranslateTransform x:Name="IndeterminateTransform" X="-150"/>
+                            </Border.RenderTransform>
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsIndeterminate" Value="True">
+                            <Setter TargetName="PART_Indicator" Property="Visibility" Value="Collapsed"/>
+                            <Setter TargetName="IndeterminateBar" Property="Visibility" Value="Visible"/>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard RepeatBehavior="Forever">
+                                        <DoubleAnimation Storyboard.TargetName="IndeterminateTransform"
+                                                         Storyboard.TargetProperty="X"
+                                                         From="0" To="600" Duration="0:0:2"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

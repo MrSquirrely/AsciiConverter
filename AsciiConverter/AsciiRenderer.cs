@@ -21,7 +21,7 @@ namespace ASCIIV.Converter {
             Font font = new("Consolas", 10, FontStyle.Bold);
 
             // Create brush based on color name
-            Color fontColor = Color.FromName(colorName);
+            Color fontColor = colorName.StartsWith("#") ? ColorTranslator.FromHtml(colorName) : Color.FromName(colorName);
             SolidBrush fontBrush = new(fontColor);
 
             using (Bitmap tempBmp = new(1, 1))

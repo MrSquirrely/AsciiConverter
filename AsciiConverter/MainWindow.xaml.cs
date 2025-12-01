@@ -6,6 +6,7 @@ using NAudio.Wave;
 using OpenCvSharp;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Windows;
@@ -27,6 +28,9 @@ namespace ASCIIV.Converter {
         // Stores the specific file created by the last conversion so "Play" works correctly
         private string _lastCreatedFilePath = string.Empty;
 
+        // Generate unique id for program
+        private readonly string _runId = Guid.NewGuid().ToString()[..8];
+        
         // The ASCII ramp: characters sorted from Darkest (@) to Lightest (space) 
         private readonly char[] _standardRamp = new string("@%#*+=-:. ").ToCharArray();
         private readonly char[] _highDetailRamp = new string("$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\\\|()1{}[]?-_+~<>i!lI;:,\\\"^`' ").ToCharArray();
@@ -43,7 +47,7 @@ namespace ASCIIV.Converter {
             InitializeComponent();
         }
 
-        private void MainWindow_Loaded(object sender, RoutedEventArgs e) {
+        private async void MainWindow_Loaded(object sender, RoutedEventArgs e) {
             // 1. Check for "Protected Folder" status
             if (!HasWritePermission()) {
                 CustomMessageBox.Show(
@@ -59,9 +63,10 @@ namespace ASCIIV.Converter {
             }
 
             // 2. Safe to initialize
-            InitializeFFmpeg();
+           await InitializeFFmpeg();
+           LoadButton.IsEnabled = true;
         }
-        private bool HasWritePermission() {
+        private static bool HasWritePermission() {
             try {
                 // Try to create and delete a temporary file in the app's folder
                 string testPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".perm_test");
@@ -77,12 +82,15 @@ namespace ASCIIV.Converter {
             }
         }
 
-        private static async void InitializeFFmpeg() {
+        private static async Task InitializeFFmpeg() {
             try {
                 string execPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg");
                 FFmpeg.SetExecutablesPath(execPath);
 
-                if (Directory.Exists(execPath)) return;
+                string exeName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)? "ffmpeg.exe" : "ffmpeg";
+
+                if (File.Exists(Path.Combine(execPath, exeName))) return;
+
                 Directory.CreateDirectory(execPath);
                 await FFmpegDownloader.GetLatestVersion(FFmpegVersion.Official, execPath);
             }
@@ -168,10 +176,10 @@ namespace ASCIIV.Converter {
             Directory.CreateDirectory(projectFolder);
 
             // Temporary intermediate filenames
-            const string asciiFileName = "temp_video.txt";
-            const string mp3FileName = "temp_audio.mp3";
-            const string wavFileName = "temp_audio.wav";
-            const string jsonFileName = "temp_project.json";
+            string asciiFileName = $"temp_{_runId}_video.txt";
+            string mp3FileName = $"temp_{_runId}_audio.mp3";
+            string wavFileName = $"temp_{_runId}_audio.wav";
+            string jsonFileName = $"temp_{_runId}_project.json";
 
             string fullAsciiPath = Path.Combine(projectFolder, asciiFileName);
             string fullMp3Path = Path.Combine(projectFolder, mp3FileName);
@@ -233,10 +241,10 @@ namespace ASCIIV.Converter {
                     double aspectRatio = (double)frame.Height / frame.Width;
                     int newHeight = (int)(videoWidth * aspectRatio * 0.5);
 
-                    Mat resizedFrame = new();
+                    using Mat resizedFrame = new();
                     Cv2.Resize(frame, resizedFrame, new OpenCvSharp.Size(videoWidth, newHeight));
 
-                    Mat grayFrame = new();
+                    using Mat grayFrame = new();
                     Cv2.CvtColor(resizedFrame, grayFrame, ColorConversionCodes.BGR2GRAY);
 
                     StringBuilder sb = new();
@@ -296,7 +304,7 @@ namespace ASCIIV.Converter {
 
             if (toMp4) {
                 // Pass project name to MP4 converter too
-                ConvertToMp4(projectName);
+                await ConvertToMp4(projectName);
             }
 
             Application.Current.Dispatcher.Invoke(() => {
@@ -327,7 +335,8 @@ namespace ASCIIV.Converter {
         }
         
         // Updated to accept projectName
-        private async void ConvertToMp4(string projectName) {
+        private async Task ConvertToMp4(string projectName) {
+            Debug.WriteLine("Starting MP4 Conversion");
             try {
                 // Use the variable we just set
                 string singleFile = _lastCreatedFilePath;
@@ -336,6 +345,11 @@ namespace ASCIIV.Converter {
                     CustomMessageBox.Show("Source .asciiv file not found for MP4 conversion.");
                     return;
                 }
+
+                Application.Current.Dispatcher.Invoke(() => {
+                    StatusText.Text = "Rendering MP4... (This may take a while)";
+                    ConvertProgressBar.IsIndeterminate = true;
+                });
 
                 await Task.Run(async () => {
                     try {
@@ -370,6 +384,8 @@ namespace ASCIIV.Converter {
                         Application.Current.Dispatcher.Invoke(() => {
                             CustomMessageBox.Show("MP4 Render Complete!\nSaved to: " + outputMp4, "Render Done", CustomMessageBox.MessageBoxType.Ok, this);
                             StatusText.Text = "Done.";
+                            ConvertProgressBar.IsIndeterminate = false;
+                            ConvertProgressBar.Value = 100;
                         });
                     }
                     catch (Exception ex) {

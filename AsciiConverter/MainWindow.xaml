@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        ResizeMode="CanResize" 
+        ResizeMode="NoResize" 
         MinHeight="550" MinWidth="600"
         Height="650" Width="800"
         Title="Video to ASCII Converter"
@@ -79,6 +79,7 @@
                            Style="{StaticResource ModernTextBlock}" Margin="0,0,0,15"/>
 
                 <Button Grid.Row="1" x:Name="LoadButton" 
+                        IsEnabled="False"
                         Style="{StaticResource GradientRoundedButtonStyle}" 
                         Content="Load Video" Click="LoadButton_Click" 
                         Height="50" Margin="0,0,0,15"/>
@@ -87,20 +88,8 @@
                     <Label Content="Project Name:" FontWeight="SemiBold" 
                            VerticalAlignment="Center" 
                            Foreground="White" FontSize="14"/>
-                    <TextBox x:Name="ProjectNameText" Width="250" 
+                    <TextBox x:Name="ProjectNameText" Width="500" 
                              Style="{StaticResource ModernTextBox}"/>
-                    <Label Content="Font:" VerticalAlignment="Center" 
-                           Padding="5,5,10,5" Foreground="White" 
-                           FontSize="14" FontWeight="SemiBold"/>
-                    <ComboBox x:Name="FontComboBox" SelectedIndex="0" 
-                              Width="230"
-                              VerticalAlignment="Center" 
-                              Style="{StaticResource ModernComboBox}"
-                              >
-                        <ComboBoxItem Content="Pixelated Elegance" FontFamily="{StaticResource PixelatedEleganceFont}"/>
-                        <ComboBoxItem Content="First time writing!" FontFamily="{StaticResource FirstTimeWritingFont}"/>
-                        <ComboBoxItem Content="AVA" FontFamily="{StaticResource AvaFont}"/>
-                    </ComboBox>
                 </StackPanel>
 
                 <TextBlock Grid.Row="4" Text="2. Configure Output" 
@@ -175,7 +164,7 @@
                            VerticalAlignment="Center" HorizontalAlignment="Center" 
                            Margin="0,0,0,20"/>
 
-                <ProgressBar Grid.Row="9" x:Name="ConvertProgressBar" 
+                <ProgressBar Grid.Row="9" x:Name="ConvertProgressBar"
                              Style="{StaticResource RainbowProgressStyle}" 
                              Height="20" Minimum="0" Maximum="100" Margin="0,0,0,20"/>
 

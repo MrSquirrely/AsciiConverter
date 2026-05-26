@@ -34,6 +34,7 @@ namespace ASCIIV.Player {
 
         private bool _hasAudio;
         private readonly string? _asciiPathToLoad;
+        private string? _tempAudioPath;
 
         public PlayerWindow(string? asciiPath = null) {
             InitializeComponent();
@@ -87,6 +88,15 @@ namespace ASCIIV.Player {
                 _playbackStream = null;
             }
             _frameOffsets.Clear();
+
+            // Clean up temporary audio file
+            if (!string.IsNullOrEmpty(_tempAudioPath) && File.Exists(_tempAudioPath)) {
+                try {
+                    File.Delete(_tempAudioPath);
+                }
+                catch { }
+            }
+            _tempAudioPath = null;
         }
 
         private void LoadProject(string filePath) {
@@ -117,10 +127,10 @@ namespace ASCIIV.Player {
                     int audioSize = reader.ReadInt32();
                     if (audioSize > 0) {
                         byte[] audioBytes = reader.ReadBytes(audioSize);
-                        string tempAudioPath = Path.Combine(Path.GetTempPath(), "ascii_player_temp_audio.mp3");
-                        File.WriteAllBytes(tempAudioPath, audioBytes);
+                        _tempAudioPath = Path.Combine(Path.GetTempPath(), $"ascii_player_{Guid.NewGuid():N}.mp3");
+                        File.WriteAllBytes(_tempAudioPath, audioBytes);
 
-                        _mediaPlayer.Open(new Uri(tempAudioPath));
+                        _mediaPlayer.Open(new Uri(_tempAudioPath));
                         _hasAudio = true;
                     }
 

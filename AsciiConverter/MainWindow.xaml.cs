@@ -366,37 +366,46 @@ namespace ASCIIV.Converter {
                         double fps;
                         string colorName;
                         string[] frames;
-                        string tempAudioPath = Path.Combine(Path.GetTempPath(), "temp_render_audio.wav");
+                        string tempAudioPath = Path.Combine(Path.GetTempPath(), $"temp_render_{Guid.NewGuid():N}.wav");
 
-                        await using (FileStream fs = File.OpenRead(singleFile))
-                        using (BinaryReader reader = new(fs)) {
-                            fps = reader.ReadDouble();
-                            colorName = reader.ReadString();
-                            int audioSize = reader.ReadInt32();
+                        try {
+                            await using (FileStream fs = File.OpenRead(singleFile))
+                            using (BinaryReader reader = new(fs)) {
+                                fps = reader.ReadDouble();
+                                colorName = reader.ReadString();
+                                int audioSize = reader.ReadInt32();
 
-                            if (audioSize > 0) {
-                                byte[] audioBytes = reader.ReadBytes(audioSize);
-                                await File.WriteAllBytesAsync(tempAudioPath, audioBytes);
+                                if (audioSize > 0) {
+                                    byte[] audioBytes = reader.ReadBytes(audioSize);
+                                    await File.WriteAllBytesAsync(tempAudioPath, audioBytes);
+                                }
+
+                                using (StreamReader textReader = new(fs)) {
+                                    string allText = await textReader.ReadToEndAsync();
+                                    string[] separator = ["FRAME_END\r\n", "FRAME_END\n", "FRAME_END"];
+                                    frames = allText.Split(separator, StringSplitOptions.RemoveEmptyEntries);
+                                }
                             }
 
-                            using (StreamReader textReader = new(fs)) {
-                                string allText = await textReader.ReadToEndAsync();
-                                string[] separator = ["FRAME_END\r\n", "FRAME_END\n", "FRAME_END"];
-                                frames = allText.Split(separator, StringSplitOptions.RemoveEmptyEntries);
+                            // Use Project Name for MP4 path
+                            string outputMp4 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Output", $"{projectName}.mp4");
+
+                            await AsciiRenderer.RenderToMp4(frames, fps, tempAudioPath, outputMp4, colorName);
+
+                            Application.Current.Dispatcher.Invoke(() => {
+                                CustomMessageBox.Show("MP4 Render Complete!\nSaved to: " + outputMp4, "Render Done", CustomMessageBox.MessageBoxType.Ok, this);
+                                StatusText.Text = "Done.";
+                                ConvertProgressBar.IsIndeterminate = false;
+                                ConvertProgressBar.Value = 100;
+                            });
+                        }
+                        finally {
+                            if (File.Exists(tempAudioPath)) {
+                                try {
+                                    File.Delete(tempAudioPath);
+                                } catch { }
                             }
                         }
-
-                        // Use Project Name for MP4 path
-                        string outputMp4 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Output", $"{projectName}.mp4");
-
-                        await AsciiRenderer.RenderToMp4(frames, fps, tempAudioPath, outputMp4, colorName);
-
-                        Application.Current.Dispatcher.Invoke(() => {
-                            CustomMessageBox.Show("MP4 Render Complete!\nSaved to: " + outputMp4, "Render Done", CustomMessageBox.MessageBoxType.Ok, this);
-                            StatusText.Text = "Done.";
-                            ConvertProgressBar.IsIndeterminate = false;
-                            ConvertProgressBar.Value = 100;
-                        });
                     }
                     catch (Exception ex) {
                         Debug.WriteLine(ex.Message);
@@ -418,7 +427,11 @@ namespace ASCIIV.Converter {
             else {
                 string rawName = ProjectNameText.Text.Trim();
                 if (!string.IsNullOrEmpty(rawName)) {
-                    string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Output", $"{rawName}.asciiv");
+                    // Sanitize input to prevent path traversal
+                    char[] invalidChars = Path.GetInvalidFileNameChars();
+                    string safeName = string.Join("_", rawName.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
+
+                    string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Output", $"{safeName}.asciiv");
                     if (File.Exists(path)) {
                         PlayerWindow player = new(path);
                         player.Show();

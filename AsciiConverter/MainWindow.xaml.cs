@@ -235,6 +235,14 @@ namespace ASCIIV.Converter {
                 int currentFrameIndex = 0;
                 int lastProgress = -1;
 
+                // Pre-compute the ASCII character mapping for all 256 possible pixel values
+                // This replaces O(W*H*Frames) floating-point calculations with an O(1) array lookup
+                char[] charLookup = new char[256];
+                int maxIndex = asciiRamp.Length - 1;
+                for (int i = 0; i < 256; i++) {
+                    charLookup[i] = asciiRamp[(int)(i / 255.0 * maxIndex)];
+                }
+
                 while (capture.Read(frame)) {
                     if (frame.Empty()) break;
 
@@ -247,12 +255,14 @@ namespace ASCIIV.Converter {
                     using Mat grayFrame = new();
                     Cv2.CvtColor(resizedFrame, grayFrame, ColorConversionCodes.BGR2GRAY);
 
+                    // Use GetUnsafeGenericIndexer which is much faster than At<byte>(y, x) per pixel
+                    var indexer = grayFrame.GetUnsafeGenericIndexer<byte>();
+
                     StringBuilder sb = new();
                     for (int y = 0; y < grayFrame.Height; y++) {
                         for (int x = 0; x < grayFrame.Width; x++) {
-                            byte pixelValue = grayFrame.At<byte>(y, x);
-                            int charIndex = MapPixelToCharIndex(pixelValue, asciiRamp);
-                            sb.Append(asciiRamp[charIndex]);
+                            byte pixelValue = indexer[y, x];
+                            sb.Append(charLookup[pixelValue]);
                         }
                         sb.AppendLine();
                     }
@@ -418,12 +428,6 @@ namespace ASCIIV.Converter {
 
                 MessageBox.Show("Please convert a video first or ensure the Project Name matches an existing file.");
             }
-        }
-
-        private int MapPixelToCharIndex(byte pixelValue, char[] asciiChars) {
-            int maxIndex = asciiChars.Length - 1;
-            int index = (int)(pixelValue / 255.0 * maxIndex);
-            return index;
         }
 
         private void ToMp4Check_Checked(object sender, RoutedEventArgs e) {

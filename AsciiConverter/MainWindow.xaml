@@ -51,11 +51,15 @@
                         <Button Content="_" Click="MinimizeButton_Click"
                                 Style="{StaticResource TitleBarButtonStyle}" 
                                 Width="40" Height="30" Margin="0,0,0,0"
-                                Padding="0,-10,0,0"/>
+                                Padding="0,-10,0,0"
+                                ToolTip="Minimize"
+                                AutomationProperties.Name="Minimize"/>
 
                         <Button Content="X" Click="CloseButton_Click"
                                 Style="{StaticResource TitleBarCloseButtonStyle}" 
-                                Width="40" Height="30"/>
+                                Width="40" Height="30"
+                                ToolTip="Close"
+                                AutomationProperties.Name="Close"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -118,6 +122,7 @@
                         <Button x:Name="CustomColorButton" 
                                 Click="CustomColorButton_OnClick" Width="40" Height="40"
                                 ToolTip="Pick Custom Color"
+                                AutomationProperties.Name="Pick Custom Color"
                                 Margin="10,0"
                                 Style="{StaticResource GradientRoundedButtonStyle}">
                             <Path x:Name="PlayButtonIcon"

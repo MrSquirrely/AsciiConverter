@@ -48,11 +48,15 @@
                         <Button Content="_" Click="MinimizeButton_Click"
                                 Style="{StaticResource TitleBarButtonStyle}" 
                                 Width="40" Height="30"
-                                Padding="0,-10,0,0"/>
+                                Padding="0,-10,0,0"
+                                ToolTip="Minimize"
+                                AutomationProperties.Name="Minimize"/>
 
                         <Button Content="X" Click="CloseButton_Click"
                                 Style="{StaticResource TitleBarCloseButtonStyle}" 
-                                Width="40" Height="30"/>
+                                Width="40" Height="30"
+                                ToolTip="Close"
+                                AutomationProperties.Name="Close"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -101,7 +105,9 @@
                             <Button Grid.Column="0" x:Name="PlayPauseButton" 
                                     Style="{StaticResource GradientRoundedButtonStyle}"
                                     Width="80" Height="38" 
-                                    Click="PlayPauseButton_Click">
+                                    Click="PlayPauseButton_Click"
+                                    ToolTip="Play or Pause"
+                                    AutomationProperties.Name="Play or Pause">
                                 <Path x:Name="PlayButtonIcon"
                                       Data="{StaticResource PauseIcon}"
                                       Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
@@ -115,7 +121,8 @@
                                         Height="38" Width="50"
                                         Click="SnapshotButton_Click"
                                         Margin="0,0,10,0"
-                                        ToolTip="Save Snapshot">
+                                        ToolTip="Save Snapshot"
+                                        AutomationProperties.Name="Save Snapshot">
                                     <Path Data="{StaticResource CameraIcon}"
                                           Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                           Stretch="Uniform" Width="16" Height="16"/>
@@ -125,7 +132,9 @@
                                         Style="{StaticResource GradientRoundedButtonStyle}"
                                         Height="38" Width="50"
                                         Click="FullScreenButton_OnClick"
-                                        Margin="0,0,15,0">
+                                        Margin="0,0,15,0"
+                                        ToolTip="Toggle Full Screen"
+                                        AutomationProperties.Name="Toggle Full Screen">
                                     <Path x:Name="FullScreenIcon"
                                           Data="{StaticResource FullScreenIcon}"
                                           Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"

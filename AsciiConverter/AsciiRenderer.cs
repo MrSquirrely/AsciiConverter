@@ -38,7 +38,7 @@ namespace ASCIIV.Converter {
 
             // 2. Setup Video Writer
             // We use .mp4 extension for the temp file and 'mp4v' codec.
-            string tempVideoPath = Path.Combine(Path.GetDirectoryName(outputPath)!, "temp_render.mp4");
+            string tempVideoPath = Path.Combine(Path.GetDirectoryName(outputPath)!, $"temp_render_{Guid.NewGuid():N}.mp4");
             int fourcc = VideoWriter.FourCC("mp4v");
 
             using (VideoWriter writer = new(tempVideoPath, fourcc, fps, new Size(width, height))) {

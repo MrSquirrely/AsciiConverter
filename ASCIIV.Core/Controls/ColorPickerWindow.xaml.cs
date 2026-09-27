@@ -3,7 +3,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 
 namespace ASCIIV.Core.Controls {
-    public partial class ColorPickerWindow : Window {
+    public partial class ColorPickerWindow {
 
         public Color SelectedColor { get; private set; } = Colors.White;
 
@@ -19,7 +19,7 @@ namespace ASCIIV.Core.Controls {
         }
 
         private void Slider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) {
-            if (RedSlider != null && GreenSlider != null && BlueSlider != null) {
+            if ((RedSlider != null) && (GreenSlider != null) && (BlueSlider != null)) {
                 UpdatePreview();
             }
         }
@@ -39,7 +39,7 @@ namespace ASCIIV.Core.Controls {
 
             HexCodeText.Text = $"#{r:X2}{g:X2}{b:X2}";
 
-            double brightness = (r * 0.299 + g * 0.587 + b * 0.114);
+            double brightness = ((r * 0.299) + (g * 0.587) + (b * 0.114));
             HexCodeText.Foreground = brightness > 128 ? Brushes.Black : Brushes.White;
         }
 

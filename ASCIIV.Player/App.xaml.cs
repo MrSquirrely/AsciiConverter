@@ -5,11 +5,11 @@ namespace ASCIIV.Player;
 /// <summary>
 /// Interaction logic for App.xaml
 /// </summary>
-public partial class App : Application {
+public partial class App {
     protected override void OnStartup(StartupEventArgs e) {
         base.OnStartup(e);
         string? initialFile = null;
-        if (e.Args.Length > 0 && File.Exists(e.Args[0])) {
+        if ((e.Args.Length > 0) && File.Exists(e.Args[0])) {
             initialFile = e.Args[0];
         }
 

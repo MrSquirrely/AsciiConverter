@@ -31,7 +31,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ASCIIV.Core\ASCIIV.Core.csproj" />
     <ProjectReference Include="..\ASCIIV.Player\ASCIIV.Player.csproj" />
     <ProjectReference Include="..\ASCIIV.Theme\ASCIIV.Theme.csproj" />
   </ItemGroup>

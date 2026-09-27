@@ -14,36 +14,36 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace ASCIIV.Player {
-    public partial class PlayerWindow  {
+    public partial class PlayerWindow {
         // --- STREAMING FIELDS ---
-        private FileStream? _playbackStream;
-        private readonly List<long> _frameOffsets = []; // Stores the byte position of each frame
-        private readonly byte[] _searchPattern = "FRAME_END"u8.ToArray(); // The marker we look for
+        private FileStream? playbackStream;
+        private readonly List<long> frameOffsets = []; // Stores the byte position of each frame
+        private readonly byte[] searchPattern = [.. "FRAME_END"u8]; // The marker we look for
 
         // State flags
-        private bool _isWindowOpen = true;
-        private bool _isPaused;
-        private bool _isDragging;
+        private bool isWindowOpen = true;
+        private bool isPaused;
+        private bool isDragging;
 
-        private readonly MediaPlayer _mediaPlayer = new();
-        private AsciiProject? _projectData;
+        private readonly MediaPlayer mediaPlayer = new();
+        private AsciiProject? projectData;
 
         // Timing
-        private readonly Stopwatch _stopwatch = new();
-        private TimeSpan _seekOffset = TimeSpan.Zero;
+        private readonly Stopwatch stopwatch = new();
+        private TimeSpan seekOffset = TimeSpan.Zero;
 
-        private bool _hasAudio;
-        private readonly string? _asciiPathToLoad;
+        private bool hasAudio;
+        private readonly string? asciiPathToLoad;
 
         public PlayerWindow(string? asciiPath = null) {
             InitializeComponent();
-            _asciiPathToLoad = asciiPath;
+            asciiPathToLoad = asciiPath;
             Loaded += PlayerWindow_Loaded;
         }
 
         private void PlayerWindow_Loaded(object sender, RoutedEventArgs e) {
-            if (!string.IsNullOrEmpty(_asciiPathToLoad)) {
-                LoadProject(_asciiPathToLoad);
+            if (!string.IsNullOrEmpty(asciiPathToLoad)) {
+                LoadProject(asciiPathToLoad);
             }
             else {
                 OpenFileDialog();
@@ -72,35 +72,35 @@ namespace ASCIIV.Player {
         }
 
         private void StopPlayback() {
-            _isPaused = true;
-            _stopwatch.Stop();
-            _stopwatch.Reset();
-            _mediaPlayer.Stop();
-            _mediaPlayer.Close();
-            _hasAudio = false;
-            _seekOffset = TimeSpan.Zero;
+            isPaused = true;
+            stopwatch.Stop();
+            stopwatch.Reset();
+            mediaPlayer.Stop();
+            mediaPlayer.Close();
+            hasAudio = false;
+            seekOffset = TimeSpan.Zero;
 
             // Close the stream
-            if (_playbackStream != null) {
-                _playbackStream.Close();
-                _playbackStream.Dispose();
-                _playbackStream = null;
+            if (playbackStream != null) {
+                playbackStream.Close();
+                playbackStream.Dispose();
+                playbackStream = null;
             }
-            _frameOffsets.Clear();
+            frameOffsets.Clear();
         }
 
         private void LoadProject(string filePath) {
             try {
                 // Open the file for READING (Share.Read allows other apps to see it)
                 // We keep this stream open for the entire duration of playback
-                _playbackStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                playbackStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-                using (BinaryReader reader = new(_playbackStream, Encoding.UTF8, leaveOpen: true)) {
+                using (BinaryReader reader = new(playbackStream, Encoding.UTF8, leaveOpen: true)) {
                     // A. Read Headers
                     double fps = reader.ReadDouble();
                     string colorName = reader.ReadString();
 
-                    _projectData = new AsciiProject {
+                    projectData = new AsciiProject {
                         FramesPerSecond = fps,
                         ColorName = colorName
                     };
@@ -112,7 +112,7 @@ namespace ASCIIV.Player {
                     catch {
                         DisplayText.Foreground = Brushes.White;
                     }
-                    
+
                     // B. Read Audio
                     int audioSize = reader.ReadInt32();
                     if (audioSize > 0) {
@@ -120,13 +120,13 @@ namespace ASCIIV.Player {
                         string tempAudioPath = Path.Combine(Path.GetTempPath(), "ascii_player_temp_audio.mp3");
                         File.WriteAllBytes(tempAudioPath, audioBytes);
 
-                        _mediaPlayer.Open(new Uri(tempAudioPath));
-                        _hasAudio = true;
+                        mediaPlayer.Open(new Uri(tempAudioPath));
+                        hasAudio = true;
                     }
 
                     // C. INDEX THE FRAMES (The Streaming Magic)
                     // The stream is now positioned at the start of the ASCII text data.
-                    long textStartPosition = _playbackStream.Position;
+                    long textStartPosition = playbackStream.Position;
 
                     // Run indexing on a background task so UI doesn't freeze for huge files
                     // But for simplicity in this window, we'll do it synchronously, or you can show a "Loading..." text
@@ -137,11 +137,11 @@ namespace ASCIIV.Player {
                 }
 
                 // D. Final Setup
-                _mediaPlayer.Volume = VolumeSlider.Value;
+                mediaPlayer.Volume = VolumeSlider.Value;
                 string videoName = Path.GetFileNameWithoutExtension(filePath);
-                WindowTitleText.Text = $"{videoName} - {_frameOffsets.Count} Frames";
+                WindowTitleText.Text = $"{videoName} - {frameOffsets.Count} Frames";
 
-                ProgressSlider.Maximum = _frameOffsets.Count > 0 ? _frameOffsets.Count - 1 : 0;
+                ProgressSlider.Maximum = frameOffsets.Count > 0 ? frameOffsets.Count - 1 : 0;
 
                 StartSyncPlayback();
             }
@@ -154,11 +154,11 @@ namespace ASCIIV.Player {
         // --- THE INDEXER ---
         // Scans the file for "FRAME_END" and records start positions
         private void IndexFileFrames(long startPosition) {
-            _frameOffsets.Clear();
-            _playbackStream!.Position = startPosition;
+            frameOffsets.Clear();
+            playbackStream!.Position = startPosition;
 
             // The first frame starts right here
-            _frameOffsets.Add(startPosition);
+            frameOffsets.Add(startPosition);
 
             // 1. Read the file in chunks to be fast
             const int bufferSize = 1024 * 64; // 64KB chunks
@@ -167,10 +167,10 @@ namespace ASCIIV.Player {
             long absolutePosition = startPosition;
 
             // 2. Scan loop
-            while ((bytesRead = _playbackStream.Read(buffer, 0, bufferSize)) > 0) {
+            while ((bytesRead = playbackStream.Read(buffer, 0, bufferSize)) > 0) {
                 for (int i = 0; i < bytesRead; i++) {
                     // Check if we found the 'F' of "FRAME_END"
-                    if (buffer[i] != _searchPattern[0]) continue;
+                    if (buffer[i] != searchPattern[0]) continue;
                     // Potential match, check the rest
                     if (!IsMatch(buffer, i, bytesRead)) continue;
                     // Found FRAME_END!
@@ -178,7 +178,7 @@ namespace ASCIIV.Player {
                     // "FRAME_END" is 9 bytes. 
 
                     // Let's calculate the absolute file position of the end of this marker
-                    long markerEndPos = absolutePosition + i + _searchPattern.Length;
+                    long markerEndPos = absolutePosition + i + searchPattern.Length;
 
                     // We need to verify if there are \r\n to skip.
                     // Since we are inside a buffer, checking forward is tricky if at boundary.
@@ -186,8 +186,8 @@ namespace ASCIIV.Player {
                     // We will store the markerEndPos, and when Reading, we Trim() whitespace.
 
                     // Important: We only add a new frame if we aren't at the very end of file
-                    if (markerEndPos < _playbackStream.Length) {
-                        _frameOffsets.Add(markerEndPos);
+                    if (markerEndPos < playbackStream.Length) {
+                        frameOffsets.Add(markerEndPos);
                     }
                 }
                 absolutePosition += bytesRead;
@@ -196,10 +196,10 @@ namespace ASCIIV.Player {
 
         // Helper to check for "FRAME_END" inside the buffer
         private bool IsMatch(byte[] buffer, int index, int count) {
-            if (index + _searchPattern.Length > count) return false; // Split across buffer boundary (edge case ignored for simplicity)
+            if ((index + searchPattern.Length) > count) return false; // Split across buffer boundary (edge case ignored for simplicity)
 
-            for (int j = 1; j < _searchPattern.Length; j++) {
-                if (buffer[index + j] != _searchPattern[j]) return false;
+            for (int j = 1; j < searchPattern.Length; j++) {
+                if (buffer[index + j] != searchPattern[j]) return false;
             }
             return true;
         }
@@ -207,24 +207,24 @@ namespace ASCIIV.Player {
         // --- STREAM READER ---
         // Seeks to the specific frame and reads only that text
         private string ReadFrame(int index) {
-            if (_playbackStream == null || index < 0 || index >= _frameOffsets.Count) return "";
+            if ((playbackStream == null) || (index < 0) || (index >= frameOffsets.Count)) return string.Empty;
 
             try {
-                long startPos = _frameOffsets[index];
+                long startPos = frameOffsets[index];
 
                 // Determine length: It's the distance to the next frame, or end of file
-                long endPos = (index + 1 < _frameOffsets.Count)
-                    ? _frameOffsets[index + 1]
-                    : _playbackStream.Length;
+                long endPos = ((index + 1) < frameOffsets.Count)
+                    ? frameOffsets[index + 1]
+                    : playbackStream.Length;
 
                 int length = (int)(endPos - startPos);
-                if (length <= 0) return "";
+                if (length <= 0) return string.Empty;
 
                 // buffer
                 byte[] frameBytes = new byte[length];
 
-                _playbackStream.Seek(startPos, SeekOrigin.Begin);
-                _playbackStream.ReadExactly(frameBytes, 0, length);
+                playbackStream.Seek(startPos, SeekOrigin.Begin);
+                playbackStream.ReadExactly(frameBytes, 0, length);
 
                 // Convert to string and remove the "FRAME_END" marker that belongs to this frame
                 string raw = Encoding.UTF8.GetString(frameBytes);
@@ -242,8 +242,8 @@ namespace ASCIIV.Player {
 
         private async void StartSyncPlayback() {
             try {
-                if (_hasAudio) _mediaPlayer.Play();
-                _stopwatch.Start();
+                if (hasAudio) mediaPlayer.Play();
+                stopwatch.Start();
                 await PlayLoop();
             }
             catch (Exception e) {
@@ -252,41 +252,41 @@ namespace ASCIIV.Player {
         }
 
         private async Task PlayLoop() {
-            while (_isWindowOpen) {
-                if (_isPaused) {
+            while (isWindowOpen) {
+                if (isPaused) {
                     await Task.Delay(100);
                     continue;
                 }
 
                 TimeSpan currentTime;
-                if (_hasAudio && _mediaPlayer.Source != null) {
-                    currentTime = _mediaPlayer.Position;
+                if (hasAudio && (mediaPlayer.Source != null)) {
+                    currentTime = mediaPlayer.Position;
                     // Sync fallback
-                    if (currentTime == TimeSpan.Zero && _stopwatch.ElapsedMilliseconds > 500) {
-                        currentTime = _stopwatch.Elapsed + _seekOffset;
+                    if ((currentTime == TimeSpan.Zero) && (stopwatch.ElapsedMilliseconds > 500)) {
+                        currentTime = stopwatch.Elapsed + seekOffset;
                     }
                 }
                 else {
-                    currentTime = _stopwatch.Elapsed + _seekOffset;
+                    currentTime = stopwatch.Elapsed + seekOffset;
                 }
 
-                int frameIndex = (int)(currentTime.TotalSeconds * _projectData!.FramesPerSecond);
+                int frameIndex = (int)(currentTime.TotalSeconds * projectData!.FramesPerSecond);
 
-                if (frameIndex < _frameOffsets.Count) {
+                if (frameIndex < frameOffsets.Count) {
 
                     // --- NEW: READ FROM DISK ---
                     DisplayText.Text = ReadFrame(frameIndex);
 
-                    if (!_isDragging) {
+                    if (!isDragging) {
                         ProgressSlider.Value = frameIndex;
                     }
                 }
                 else {
                     // Loop end
-                    _isPaused = true;
-                    _stopwatch.Reset();
-                    _seekOffset = TimeSpan.Zero;
-                    if (_hasAudio) _mediaPlayer.Stop();
+                    isPaused = true;
+                    stopwatch.Reset();
+                    seekOffset = TimeSpan.Zero;
+                    if (hasAudio) mediaPlayer.Stop();
                     PlayPauseButton.Content = "Play";
                     PlayButtonIcon.Data = (Geometry)FindResource("PlayIcon");
                     ProgressSlider.Value = 0;
@@ -300,23 +300,23 @@ namespace ASCIIV.Player {
         }
 
         private void ProgressSlider_DragStarted(object sender, System.Windows.Controls.Primitives.DragStartedEventArgs e) {
-            _isDragging = true;
+            isDragging = true;
         }
 
         private void ProgressSlider_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e) {
-            _isDragging = false;
+            isDragging = false;
             int newFrameIndex = (int)ProgressSlider.Value;
-            double newTimeInSeconds = newFrameIndex / _projectData!.FramesPerSecond;
+            double newTimeInSeconds = newFrameIndex / projectData!.FramesPerSecond;
             TimeSpan newTime = TimeSpan.FromSeconds(newTimeInSeconds);
 
-            if (_hasAudio) {
-                _mediaPlayer.Position = newTime;
-                _stopwatch.Restart();
-                _seekOffset = newTime;
+            if (hasAudio) {
+                mediaPlayer.Position = newTime;
+                stopwatch.Restart();
+                seekOffset = newTime;
             }
             else {
-                _seekOffset = newTime;
-                _stopwatch.Restart();
+                seekOffset = newTime;
+                stopwatch.Restart();
             }
 
             // Force update frame
@@ -326,29 +326,29 @@ namespace ASCIIV.Player {
         // --- EXISTING UI EVENTS ---
 
         private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e) {
-            if (e.ChangedButton == MouseButton.Left) this.DragMove();
+            if (e.ChangedButton == MouseButton.Left) DragMove();
         }
 
         private void MinimizeButton_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
         private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
 
         private void PlayPauseButton_Click(object sender, RoutedEventArgs e) {
-            if (_isPaused) {
-                _isPaused = false;
-                _stopwatch.Start();
-                if (_hasAudio) _mediaPlayer.Play();
+            if (isPaused) {
+                isPaused = false;
+                stopwatch.Start();
+                if (hasAudio) mediaPlayer.Play();
                 PlayButtonIcon.Data = (Geometry)FindResource("PauseIcon");
             }
             else {
-                _isPaused = true;
-                _stopwatch.Stop();
-                if (_hasAudio) _mediaPlayer.Pause();
+                isPaused = true;
+                stopwatch.Stop();
+                if (hasAudio) mediaPlayer.Pause();
                 PlayButtonIcon.Data = (Geometry)FindResource("PlayIcon");
             }
         }
 
         private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) {
-            _mediaPlayer.Volume = VolumeSlider.Value;
+            mediaPlayer.Volume = VolumeSlider.Value;
         }
 
         private void FullScreenButton_OnClick(object sender, RoutedEventArgs e) {
@@ -364,8 +364,8 @@ namespace ASCIIV.Player {
 
         private void SnapshotButton_Click(object sender, RoutedEventArgs e) {
             if (string.IsNullOrEmpty(DisplayText.Text)) return;
-            bool wasPaused = _isPaused;
-            if (!_isPaused) PlayPauseButton_Click(this, null!);
+            bool wasPaused = isPaused;
+            if (!isPaused) PlayPauseButton_Click(this, null!);
 
             SaveFileDialog saveDialog = new() {
                 Filter = "PNG Image|*.png",
@@ -408,7 +408,7 @@ namespace ASCIIV.Player {
         }
 
         protected override void OnClosed(EventArgs e) {
-            _isWindowOpen = false;
+            isWindowOpen = false;
             StopPlayback();
             base.OnClosed(e);
         }

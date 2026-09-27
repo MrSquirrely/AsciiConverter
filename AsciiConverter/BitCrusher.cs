@@ -2,55 +2,55 @@
 
 namespace ASCIIV.Converter {
     public class BitCrusher : ISampleProvider {
-        private readonly ISampleProvider _source;
-        private readonly int _channels;
+        private readonly ISampleProvider source;
+        private readonly int channels;
 
         // Parameters
-        private int _bitDepth;
-        private int _downSampleFactor;
+        private int bitDepth;
+        private int downSampleFactor;
 
         // State for downsampling (Holding values)
         // We need an array to hold the last value for EACH channel
-        private readonly float[] _lastSampleValues;
-        private int _sampleFrameCount; // Counts "Pairs" of samples, not individual floats
+        private readonly float[] lastSampleValues;
+        private int sampleFrameCount; // Counts "Pairs" of samples, not individual floats
         public BitCrusher(ISampleProvider source) {
-            _source = source;
-            _channels = source.WaveFormat.Channels;
+            this.source = source;
+            channels = source.WaveFormat.Channels;
 
             // Initialize the "Hold" buffer (Size 1 for Mono, Size 2 for Stereo)
-            _lastSampleValues = new float[_channels];
+            lastSampleValues = new float[channels];
 
             // Defaults
-            _bitDepth = 8;
-            _downSampleFactor = 5;
+            bitDepth = 8;
+            downSampleFactor = 5;
         }
 
-        public WaveFormat WaveFormat => _source.WaveFormat;
+        public WaveFormat WaveFormat => source.WaveFormat;
 
         public void SetBitDepth(int bits) {
             if (bits < 1) bits = 1;
             if (bits > 32) bits = 32;
-            _bitDepth = bits;
+            bitDepth = bits;
         }
 
         public void SetDownSampleFactor(int factor) {
             if (factor < 1) factor = 1;
-            _downSampleFactor = factor;
+            downSampleFactor = factor;
         }
 
         public int Read(float[] buffer, int offset, int count) {
-            int samplesRead = _source.Read(buffer, offset, count);
+            int samplesRead = source.Read(buffer, offset, count);
 
             // Calculate Bit-Depth Step Size
-            float stepSize = (float)Math.Pow(2, _bitDepth);
+            float stepSize = (float)Math.Pow(2, bitDepth);
 
             // LOOP through the buffer by "Frames" (Steps of 1 for Mono, 2 for Stereo)
-            for (int i = 0; i < samplesRead; i += _channels) {
+            for (int i = 0; i < samplesRead; i += channels) {
                 // Deciding: Do we update the sound, or hold the old sound?
-                bool updateSample = (_sampleFrameCount % _downSampleFactor) == 0;
+                bool updateSample = (sampleFrameCount % downSampleFactor) == 0;
 
                 // Process every channel in this frame (Left, then Right)
-                for (int channel = 0; channel < _channels; channel++) {
+                for (int channel = 0; channel < channels; channel++) {
                     int index = offset + i + channel;
 
                     // Safety check to ensure we don't go out of bounds
@@ -65,16 +65,16 @@ namespace ASCIIV.Converter {
 
                         // 3. Save it to the buffer AND our history
                         buffer[index] = crushedSample;
-                        _lastSampleValues[channel] = crushedSample;
+                        lastSampleValues[channel] = crushedSample;
                     }
                     else {
                         // HOLD: Overwrite the current sample with the OLD value
-                        buffer[index] = _lastSampleValues[channel];
+                        buffer[index] = lastSampleValues[channel];
                     }
                 }
 
                 // Only increment the frame counter after processing the full L+R pair
-                _sampleFrameCount++;
+                sampleFrameCount++;
             }
 
             return samplesRead;

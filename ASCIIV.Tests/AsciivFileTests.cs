@@ -206,8 +206,8 @@ public class AsciivFileTests {
     }
 
     [Fact]
-    public void ComposeFrameText_UsesSpaceForIndicesOutsideThePalette() {
-        string text = AsciivReader.ComposeFrameText([0, 200], width: 2, height: 1, "@");
+    public void CreateFrame_UsesSpaceForIndicesOutsideThePalette() {
+        string text = AsciivReader.CreateFrame([0, 200], [], width: 2, height: 1, "@").ToText();
 
         Assert.Equal("@ ", text);
     }

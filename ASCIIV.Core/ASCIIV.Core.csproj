@@ -9,6 +9,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Fonts that ASCII frames can be drawn with; copied next to every app that uses Core.
+         Shrek.ttf is not in the repository (see the README), so it is only included when present -->
+    <Content Include="Fonts\Shrek.ttf" CopyToOutputDirectory="PreserveNewest" Condition="Exists('Fonts\Shrek.ttf')" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Update="Controls\ColorPickerWindow.xaml.cs">
       <SubType>Code</SubType>
     </Compile>

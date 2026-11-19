@@ -399,3 +399,6 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# The Shrek font is not redistributed with the project; see the README for where to get it
+ASCIIV.Core/Fonts/Shrek.ttf

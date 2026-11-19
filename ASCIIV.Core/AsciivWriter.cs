@@ -4,7 +4,7 @@ using System.Text;
 namespace ASCIIV.Core;
 
 /// <summary>
-/// Writes version 2 .asciiv files.
+/// Writes .asciiv files in the current format version.
 /// </summary>
 public static class AsciivWriter {
     /// <summary>
@@ -73,6 +73,8 @@ public static class AsciivWriter {
             writer.Write(header.Height);
             writer.Write(header.FrameCount);
             writer.Write(header.Palette);
+            writer.Write(header.HasCellColors ? AsciivFormat.CellColorMode : AsciivFormat.SingleColorMode);
+            writer.Write(header.FontName);
             writer.Write((int)audioLength);
         }
 

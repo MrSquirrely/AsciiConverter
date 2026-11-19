@@ -9,16 +9,15 @@ namespace ASCIIV.Core;
 /// </summary>
 public sealed class AsciivReader : IDisposable {
     private const double MaxFramesPerSecond = 1000;
-    private const string LineBreak = "\r\n";
 
     private readonly Stream _stream;
     private readonly long _audioStart;
     private readonly int _audioLength;
     private readonly long _framesStart;
 
-    // Version 2 only
+    // Indexed format only
     private readonly char[] _palette = [];
-    private readonly byte[] _cellBuffer = [];
+    private readonly byte[] _frameBuffer = [];
 
     // Legacy only: byte offset of each text frame
     private readonly List<long>? _legacyOffsets;
@@ -48,9 +47,9 @@ public sealed class AsciivReader : IDisposable {
             }
             else {
                 int version = reader.ReadInt32();
-                if (version != AsciivFormat.CurrentVersion) {
+                if (version is < AsciivFormat.FirstVersion or > AsciivFormat.CurrentVersion) {
                     throw new InvalidDataException(
-                        $"This file uses format version {version}, but only version {AsciivFormat.CurrentVersion} is supported.");
+                        $"This file uses format version {version}, but only versions up to {AsciivFormat.CurrentVersion} are supported.");
                 }
 
                 FramesPerSecond = ReadFramesPerSecond(reader);
@@ -59,20 +58,24 @@ public sealed class AsciivReader : IDisposable {
                 Height = reader.ReadInt32();
                 int declaredFrameCount = reader.ReadInt32();
                 _palette = reader.ReadString().ToCharArray();
+                byte colorMode = (version >= AsciivFormat.CellColorsVersion) ? reader.ReadByte() : AsciivFormat.SingleColorMode;
+                FontName = (version >= AsciivFormat.FontVersion) ? reader.ReadString() : string.Empty;
 
                 if ((Width is < 1 or > AsciivFormat.MaxDimension)
                     || (Height is < 1 or > AsciivFormat.MaxDimension)
                     || (declaredFrameCount < 0)
-                    || (_palette.Length is < 1 or > AsciivFormat.MaxPaletteSize)) {
+                    || (_palette.Length is < 1 or > AsciivFormat.MaxPaletteSize)
+                    || (colorMode > AsciivFormat.CellColorMode)) {
                     throw new InvalidDataException("The file header is corrupt.");
                 }
 
+                HasCellColors = colorMode == AsciivFormat.CellColorMode;
                 (_audioStart, _audioLength) = ReadAudioSection(reader);
                 _framesStart = _audioStart + _audioLength;
-                _cellBuffer = new byte[Width * Height];
+                _frameBuffer = new byte[Width * Height * (HasCellColors ? 2 : 1)];
 
                 // A truncated file still plays the frames that are complete
-                long availableFrames = (stream.Length - _framesStart) / _cellBuffer.Length;
+                long availableFrames = (stream.Length - _framesStart) / _frameBuffer.Length;
                 FrameCount = (int)Math.Min(declaredFrameCount, availableFrames);
             }
         }
@@ -98,6 +101,12 @@ public sealed class AsciivReader : IDisposable {
 
     public int FrameCount { get; }
 
+    /// <summary>True when every cell has its own colour instead of the whole video using <see cref="ColorName"/>.</summary>
+    public bool HasCellColors { get; }
+
+    /// <summary>Name of the <see cref="FrameFont"/> to draw with. Empty for the default font.</summary>
+    public string FontName { get; } = string.Empty;
+
     public bool HasAudio => _audioLength > 0;
 
     /// <summary>True when the file was written before the versioned format existed.</summary>
@@ -110,20 +119,30 @@ public sealed class AsciivReader : IDisposable {
     }
 
     /// <summary>
-    /// Returns the text of one frame, rows separated by line breaks. An index outside the file returns an empty string.
+    /// Returns one frame. An index outside the file returns <see cref="AsciiFrame.Empty"/>.
     /// </summary>
-    public string ReadFrame(int index) {
+    public AsciiFrame GetFrame(int index) {
         if ((index < 0) || (index >= FrameCount)) {
-            return string.Empty;
+            return AsciiFrame.Empty;
         }
 
         if (_legacyOffsets is not null) {
-            return FrameIndexer.ReadFrame(_stream, _legacyOffsets, index);
+            return AsciiFrame.FromText(FrameIndexer.ReadFrame(_stream, _legacyOffsets, index));
         }
 
-        _stream.Position = _framesStart + ((long)index * _cellBuffer.Length);
-        _stream.ReadExactly(_cellBuffer);
-        return ComposeFrameText(_cellBuffer, Width, Height, _palette);
+        _stream.Position = _framesStart + ((long)index * _frameBuffer.Length);
+        _stream.ReadExactly(_frameBuffer);
+
+        int cellCount = Width * Height;
+        ReadOnlySpan<byte> cells = _frameBuffer.AsSpan(0, cellCount);
+        return CreateFrame(cells, HasCellColors ? _frameBuffer.AsSpan(cellCount) : [], Width, Height, _palette);
+    }
+
+    /// <summary>
+    /// Returns the text of one frame, rows separated by line breaks. An index outside the file returns an empty string.
+    /// </summary>
+    public string ReadFrame(int index) {
+        return GetFrame(index).ToText();
     }
 
     /// <summary>
@@ -141,33 +160,24 @@ public sealed class AsciivReader : IDisposable {
     }
 
     /// <summary>
-    /// Turns the cells of one frame into text: one character per cell and a line break between rows.
+    /// Turns stored cells into a frame. <paramref name="colors"/> is empty for a single-colour frame.
     /// </summary>
-    public static string ComposeFrameText(ReadOnlySpan<byte> cells, int width, int height, ReadOnlySpan<char> palette) {
+    public static AsciiFrame CreateFrame(ReadOnlySpan<byte> cells, ReadOnlySpan<byte> colors, int width, int height, ReadOnlySpan<char> palette) {
         if (cells.Length != (width * height)) {
             throw new ArgumentException("The cell count does not match the frame dimensions.", nameof(cells));
         }
 
-        if ((width == 0) || (height == 0)) {
-            return string.Empty;
+        if (!colors.IsEmpty && (colors.Length != cells.Length)) {
+            throw new ArgumentException("The colour count does not match the cell count.", nameof(colors));
         }
 
-        char[] text = new char[(width * height) + ((height - 1) * LineBreak.Length)];
-        int position = 0;
-        for (int y = 0; y < height; y++) {
-            if (y > 0) {
-                LineBreak.CopyTo(text.AsSpan(position));
-                position += LineBreak.Length;
-            }
-
-            ReadOnlySpan<byte> row = cells.Slice(y * width, width);
-            foreach (byte cell in row) {
-                // An index outside the palette can only come from a damaged file
-                text[position++] = (cell < palette.Length) ? palette[cell] : ' ';
-            }
+        char[] chars = new char[cells.Length];
+        for (int i = 0; i < cells.Length; i++) {
+            // An index outside the palette can only come from a damaged file
+            chars[i] = (cells[i] < palette.Length) ? palette[cells[i]] : ' ';
         }
 
-        return new string(text);
+        return new AsciiFrame(width, height, chars, colors.IsEmpty ? null : colors.ToArray());
     }
 
     public void Dispose() {

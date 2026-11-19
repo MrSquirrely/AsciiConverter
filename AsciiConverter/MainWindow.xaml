@@ -3,10 +3,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:controls="clr-namespace:ASCIIV.Core.Controls;assembly=ASCIIV.Core"
         mc:Ignorable="d"
-        ResizeMode="CanResize" 
-        MinHeight="650" MinWidth="750"
-        Height="760" Width="840"
+        ResizeMode="CanResize"
+        MinHeight="640" MinWidth="1000"
+        Height="870" Width="1320"
+        WindowStartupLocation="CenterScreen"
         Title="Video to ASCII Converter"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -14,13 +16,9 @@
         Loaded="MainWindow_Loaded"
         FontFamily="{StaticResource PixelatedEleganceFont}">
 
-    <Border CornerRadius="10" BorderThickness="2" BorderBrush="{StaticResource MainGradientBrush}">
-        <Border.Background>
-            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                <GradientStop Color="#444" Offset="0.0"/>
-                <GradientStop Color="#222" Offset="1.0"/>
-            </LinearGradientBrush>
-        </Border.Background>
+    <Border CornerRadius="10" BorderThickness="2"
+            BorderBrush="{StaticResource MainGradientBrush}"
+            Background="{StaticResource WindowBackgroundBrush}">
 
         <Grid>
             <Grid.RowDefinitions>
@@ -28,9 +26,11 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <Border Grid.Row="0" 
-                    Background="#202020" 
-                    CornerRadius="8,8,0,0" 
+            <!-- Title bar -->
+            <Border Grid.Row="0"
+                    Background="{StaticResource TitleBarBackgroundBrush}"
+                    CornerRadius="8,8,0,0"
+                    ToolTip="Drag to move the window"
                     MouseDown="TitleBar_MouseDown">
 
                 <Grid Background="Transparent">
@@ -39,205 +39,310 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Text="Video to ASCIIV Converter" 
-                               Foreground="White" 
-                               VerticalAlignment="Center" 
-                               Margin="15,0,0,0"
-                               FontSize="16"
-                               Opacity="1.0"
-                               FontWeight="SemiBold"/>
+                    <TextBlock Text="Video to ASCIIV Converter" Style="{StaticResource TitleBarTextStyle}"/>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,5,0">
                         <Button Content="_" Click="MinimizeButton_Click"
-                                Style="{StaticResource TitleBarButtonStyle}" 
-                                Width="40" Height="30" Margin="0,0,0,0"
+                                Style="{StaticResource TitleBarButtonStyle}"
+                                ToolTip="Minimize"
+                                Width="40" Height="30"
                                 Padding="0,-10,0,0"/>
 
                         <Button Content="X" Click="CloseButton_Click"
-                                Style="{StaticResource TitleBarCloseButtonStyle}" 
+                                Style="{StaticResource TitleBarCloseButtonStyle}"
+                                ToolTip="Close. A running conversion is cancelled first"
                                 Width="40" Height="30"/>
                     </StackPanel>
                 </Grid>
             </Border>
 
-            <Grid Grid.Row="1" Margin="25,10,25,20">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <!-- 0: Header 1 -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- 1: Load Video Button -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- 2: Project Name -->
-                    <RowDefinition Height="15"/>
-                    <!-- 3: Spacer -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- 4: Header 2 -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- 5: Options Row 1 (Audio & Output) -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- 6: Options Row 2 (Style & Contrast) -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- 7: Convert / Cancel Buttons -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- 8: Status Text -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- 9: Progress Bar -->
-                    <RowDefinition Height="*"/>
-                    <!-- 10: Live ASCII Preview Container -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- 11: Play Last Output Button -->
-                </Grid.RowDefinitions>
+            <Grid Grid.Row="1" Margin="20,12,20,20">
+                <Grid.ColumnDefinitions>
+                    <!-- Settings -->
+                    <ColumnDefinition Width="470"/>
+                    <ColumnDefinition Width="20"/>
+                    <!-- Live preview -->
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Row="0" Text="1. Select a Video File" 
-                           Style="{StaticResource ModernTextBlock}" Margin="0,0,0,10"/>
+                <!-- LEFT: settings on top (scrolls on small screens), actions pinned to the bottom -->
+                <DockPanel Grid.Column="0">
 
-                <Button Grid.Row="1" x:Name="LoadButton" 
-                        IsEnabled="False"
-                        Style="{StaticResource GradientRoundedButtonStyle}" 
-                        Content="Load Video" Click="LoadButton_Click" 
-                        Height="45" Margin="0,0,0,10"/>
+                    <StackPanel DockPanel.Dock="Bottom">
+                        <Grid Margin="0,10,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" x:Name="ConvertButton"
+                                    Style="{StaticResource GradientRoundedButtonStyle}"
+                                    Content="Convert &amp; Save" Click="ConvertButton_Click"
+                                    ToolTip="Convert the loaded video with these settings and save it. Load a video first"
+                                    ToolTipService.ShowOnDisabled="True"
+                                    Height="45" IsEnabled="False"/>
+                            <Button Grid.Column="1" x:Name="CancelButton"
+                                    Style="{StaticResource GradientRoundedButtonStyle}"
+                                    Content="Cancel" Click="CancelButton_Click"
+                                    ToolTip="Stop the running conversion. Nothing is saved"
+                                    Height="45" Width="100" Margin="10,0,0,0"
+                                    IsEnabled="False" Visibility="Collapsed"/>
+                        </Grid>
 
-                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,0">
-                    <Label Content="Project Name:" FontWeight="SemiBold" 
-                           VerticalAlignment="Center" 
-                           Foreground="White" FontSize="14"/>
-                    <TextBox x:Name="ProjectNameText" Width="520" 
-                             Style="{StaticResource ModernTextBox}"/>
-                </StackPanel>
+                        <TextBlock x:Name="StatusText" Text="Starting..."
+                                   Style="{StaticResource ModernTextBlock}"
+                                   HorizontalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"
+                                   Margin="0,0,0,8"/>
 
-                <TextBlock Grid.Row="4" Text="2. Configure Output" 
-                           Style="{StaticResource ModernTextBlock}" Margin="0,10,0,10"/>
+                        <ProgressBar x:Name="ConvertProgressBar"
+                                     Style="{StaticResource RainbowProgressStyle}"
+                                     ToolTip="Progress of the running conversion"
+                                     Height="16" Minimum="0" Maximum="100" Margin="0,0,0,10"/>
 
-                <!-- Row 5: Crush Audio + sliders & MP4 & Color -->
-                <WrapPanel Grid.Row="5" Margin="0,0,0,10" Orientation="Horizontal">
-                    <CheckBox Name="BitCrushCheck" Content="Crush Audio" IsChecked="True" 
-                              Style="{StaticResource ModernCheckBox}" Margin="0,0,15,0"/>
-
-                    <!-- UX FEATURE: BitCrush parameter sliders -->
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,20,0"
-                                IsEnabled="{Binding ElementName=BitCrushCheck, Path=IsChecked}">
-                        <Label Content="Bits:" Foreground="White" FontSize="12" VerticalAlignment="Center" Padding="0,0,4,0"/>
-                        <Slider x:Name="BitDepthSlider" Style="{StaticResource ModernSlider}"
-                                Minimum="2" Maximum="16" Value="9" Width="70"
-                                VerticalAlignment="Center" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="0"/>
-                        <Label Content="Downsample:" Foreground="White" FontSize="12" VerticalAlignment="Center" Padding="8,0,4,0"/>
-                        <Slider x:Name="DownsampleSlider" Style="{StaticResource ModernSlider}"
-                                Minimum="2" Maximum="30" Value="10" Width="70"
-                                VerticalAlignment="Center" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="0"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" x:Name="PlayButton"
+                                    Style="{StaticResource GradientRoundedButtonStyle}"
+                                    Content="Play Last Output" Click="PlayButton_Click"
+                                    ToolTip="Open the player with the video you converted last, or the one named in Project Name"
+                                    Height="45"/>
+                            <Button Grid.Column="2" x:Name="OpenOutputFolderButton"
+                                    Style="{StaticResource GradientRoundedButtonStyle}"
+                                    Content="Open Output Folder" Click="OpenOutputFolderButton_Click"
+                                    ToolTip="Show the folder where finished videos are saved"
+                                    Height="45"/>
+                        </Grid>
                     </StackPanel>
 
-                    <CheckBox Name="ToMp4Check" Content="Create MP4" IsChecked="False" 
-                              Style="{StaticResource ModernCheckBox}" Margin="0,0,20,0" 
-                              Checked="ToMp4Check_Checked"/>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <TextBlock Text="1. Select a Video File"
+                                       Style="{StaticResource ModernTextBlock}" Margin="0,0,0,8"/>
 
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Label Content="Color:" VerticalAlignment="Center" 
-                               Padding="0,0,8,0" Foreground="White" 
-                               FontSize="14" FontWeight="SemiBold"/>
-                        <ComboBox x:Name="ColorComboBox" Width="110" SelectedIndex="0" 
-                                  VerticalAlignment="Center" 
-                                  Style="{StaticResource ModernComboBox}">
-                            <ComboBoxItem Content="White"/>
-                            <ComboBoxItem Content="Lime"/>
-                            <ComboBoxItem Content="Red"/>
-                            <ComboBoxItem Content="Cyan"/>
-                            <ComboBoxItem Content="Yellow"/>
-                        </ComboBox>
-                        <Button x:Name="CustomColorButton" 
-                                Click="CustomColorButton_OnClick" Width="36" Height="36"
-                                ToolTip="Pick Custom Color"
-                                Margin="8,0"
-                                Style="{StaticResource GradientRoundedButtonStyle}">
-                            <Path x:Name="PlayButtonIcon"
-                                  Data="{StaticResource ColorPickerIcon}"
-                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                  Stretch="Uniform" Height="14" Width="14"/>
-                        </Button>
-                    </StackPanel>
-                </WrapPanel>
+                            <Button x:Name="LoadButton"
+                                    IsEnabled="False"
+                                    Style="{StaticResource GradientRoundedButtonStyle}"
+                                    Content="Load Video" Click="LoadButton_Click"
+                                    ToolTip="Choose the video to convert: MP4, WebM, GIF, AVI, MOV or MKV"
+                                    ToolTipService.ShowOnDisabled="True"
+                                    Height="45" Margin="0,0,0,10"/>
 
-                <!-- Row 6: Text Style & Video Width & Contrast & Invert -->
-                <WrapPanel Grid.Row="6" Orientation="Horizontal" Margin="0,0,0,15">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Label Content="Text Style:" VerticalAlignment="Center" 
-                               Padding="0,0,8,0" Foreground="White" 
-                               FontSize="14" FontWeight="SemiBold"/>
-                        <ComboBox x:Name="TextStyleComboBox" Width="120" SelectedIndex="0" IsEditable="True"
-                                  VerticalAlignment="Center" Style="{StaticResource ModernComboBox}">
-                            <ComboBoxItem Content="Standard"/>
-                            <ComboBoxItem Content="Binary"/>
-                            <ComboBoxItem Content="High Detail"/>
-                            <ComboBoxItem Content="Blocks"/>
-                            <ComboBoxItem Content="Glitch"/>
-                            <ComboBoxItem Content="Optimized"/>
-                        </ComboBox>
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="140"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Project Name:" Style="{StaticResource SettingLabel}"/>
+                                <TextBox Grid.Column="1" x:Name="ProjectNameText"
+                                         Style="{StaticResource ModernTextBox}"
+                                         ToolTip="File name of the finished video. A file with the same name is replaced"/>
+                            </Grid>
 
-                        <Label Content="Width:" VerticalAlignment="Center" 
-                               Padding="15,0,8,0" Foreground="White" 
-                               FontSize="14" FontWeight="SemiBold"/>
-                        <Slider x:Name="VideoWidthSlider" Style="{StaticResource ModernSlider}" 
-                                Minimum="50" Maximum="400" Value="150" 
-                                Width="120" VerticalAlignment="Center"
-                                AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="0"/>
+                            <DockPanel Margin="0,0,0,8">
+                                <Button DockPanel.Dock="Right" x:Name="ResetButton"
+                                        Style="{StaticResource GradientRoundedButtonStyle}"
+                                        Content="Reset" Click="ResetButton_Click"
+                                        ToolTip="Put every setting below back to how it was when the app started"
+                                        Height="32" Width="90" FontSize="12"/>
+                                <TextBlock Text="2. Configure Output"
+                                           Style="{StaticResource ModernTextBlock}" VerticalAlignment="Center"/>
+                            </DockPanel>
 
-                        <!-- UX FEATURE: Contrast adjustment slider -->
-                        <Label Content="Contrast:" VerticalAlignment="Center" 
-                               Padding="15,0,8,0" Foreground="White" 
-                               FontSize="14" FontWeight="SemiBold"/>
-                        <Slider x:Name="ContrastSlider" Style="{StaticResource ModernSlider}" 
-                                Minimum="0.5" Maximum="2.5" Value="1.0" 
-                                Width="90" VerticalAlignment="Center"
-                                AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="1"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="140"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="42"/>
+                                    <!-- 0: Style preset -->
+                                    <RowDefinition Height="42"/>
+                                    <!-- 1: Text style -->
+                                    <RowDefinition Height="42"/>
+                                    <!-- 2: Font -->
+                                    <RowDefinition Height="42"/>
+                                    <!-- 3: Color -->
+                                    <RowDefinition Height="34"/>
+                                    <!-- 4: Match colors / Invert -->
+                                    <RowDefinition Height="34"/>
+                                    <!-- 5: Width -->
+                                    <RowDefinition Height="34"/>
+                                    <!-- 6: Contrast -->
+                                    <RowDefinition Height="42"/>
+                                    <!-- 7: Sound preset -->
+                                    <RowDefinition Height="34"/>
+                                    <!-- 8: Crush audio -->
+                                    <RowDefinition Height="34"/>
+                                    <!-- 9: Bits / Downsample -->
+                                    <RowDefinition Height="42"/>
+                                    <!-- 10: Export -->
+                                </Grid.RowDefinitions>
 
-                        <!-- UX FEATURE: Invert color mapping -->
-                        <CheckBox x:Name="InvertCheck" Content="Invert" IsChecked="False"
-                                  Style="{StaticResource ModernCheckBox}" Margin="15,0,0,0"/>
-                    </StackPanel>
-                </WrapPanel>
+                                <TextBlock Grid.Row="0" Text="Style Preset:" Style="{StaticResource SettingLabel}"/>
+                                <ComboBox Grid.Row="0" Grid.Column="1" x:Name="PresetComboBox"
+                                          VerticalAlignment="Center"
+                                          Style="{StaticResource ModernComboBox}"
+                                          ToolTip="A ready-made look and sound. Fills in the settings below, which you can still change"
+                                          SelectionChanged="PresetComboBox_SelectionChanged"/>
 
-                <!-- Row 7: Convert & Cancel Buttons -->
-                <Grid Grid.Row="7" Margin="0,0,0,10">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <Button Grid.Column="0" x:Name="ConvertButton" 
-                            Style="{StaticResource GradientRoundedButtonStyle}" 
-                            Content="Convert &amp; Save" Click="ConvertButton_Click" 
-                            Height="45" IsEnabled="False" Margin="0,0,10,0"/>
-                    <!-- UX FEATURE: Cancellation button -->
-                    <Button Grid.Column="1" x:Name="CancelButton" 
-                            Style="{StaticResource GradientRoundedButtonStyle}" 
-                            Content="Cancel" Click="CancelButton_Click" 
-                            Height="45" Width="100" IsEnabled="False" Visibility="Collapsed"/>
-                </Grid>
+                                <TextBlock Grid.Row="1" Text="Text Style:" Style="{StaticResource SettingLabel}"/>
+                                <ComboBox Grid.Row="1" Grid.Column="1" x:Name="TextStyleComboBox"
+                                          SelectedIndex="0" IsEditable="True"
+                                          VerticalAlignment="Center"
+                                          Style="{StaticResource ModernComboBox}"
+                                          ToolTip="The characters the picture is drawn with. Pick a style, or type your own characters from darkest to lightest"
+                                          SelectionChanged="StyleSetting_Changed"
+                                          TextBoxBase.TextChanged="StyleSetting_Changed">
+                                    <ComboBoxItem Content="Standard" ToolTip="Ten characters: the classic ASCII art look"/>
+                                    <ComboBoxItem Content="Binary" ToolTip="Only 0 and 1"/>
+                                    <ComboBoxItem Content="High Detail" ToolTip="Seventy characters for smooth shading"/>
+                                    <ComboBoxItem Content="Blocks" ToolTip="Solid and shaded blocks, like big pixels"/>
+                                    <ComboBoxItem Content="Glitch" ToolTip="A short, harsh set of symbols"/>
+                                    <ComboBoxItem Content="Optimized" ToolTip="Ninety characters ordered by how much ink they use"/>
+                                    <ComboBoxItem Content="Shrek" ToolTip="Letters picked for the Shrek font"/>
+                                </ComboBox>
 
-                <TextBlock Grid.Row="8" x:Name="StatusText" Text="Ready" 
-                           Style="{StaticResource ModernTextBlock}"
-                           VerticalAlignment="Center" HorizontalAlignment="Center" 
-                           Margin="0,0,0,8"/>
+                                <TextBlock Grid.Row="2" Text="Font:" Style="{StaticResource SettingLabel}"/>
+                                <ComboBox Grid.Row="2" Grid.Column="1" x:Name="FontComboBox"
+                                          VerticalAlignment="Center"
+                                          Style="{StaticResource ModernComboBox}"
+                                          ToolTip="The font the characters are drawn with, in the player and in exported videos"
+                                          SelectionChanged="FontComboBox_SelectionChanged"/>
 
-                <ProgressBar Grid.Row="9" x:Name="ConvertProgressBar"
-                             Style="{StaticResource RainbowProgressStyle}" 
-                             Height="16" Minimum="0" Maximum="100" Margin="0,0,0,10"/>
+                                <TextBlock Grid.Row="3" Text="Color:" Style="{StaticResource SettingLabel}"/>
+                                <DockPanel Grid.Row="3" Grid.Column="1" x:Name="ColorPanel" VerticalAlignment="Center">
+                                    <Button DockPanel.Dock="Right" x:Name="CustomColorButton"
+                                            Click="CustomColorButton_OnClick" Width="36" Height="36"
+                                            ToolTip="Mix a custom text color"
+                                            Margin="8,0,0,0"
+                                            Style="{StaticResource GradientRoundedButtonStyle}">
+                                        <Path Data="{StaticResource ColorPickerIcon}"
+                                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                              Stretch="Uniform" Height="14" Width="14"/>
+                                    </Button>
+                                    <ComboBox x:Name="ColorComboBox" SelectedIndex="0"
+                                              VerticalAlignment="Center"
+                                              Style="{StaticResource ModernComboBox}"
+                                              ToolTip="Color of the text. Empty when a custom color is in use"
+                                              SelectionChanged="StyleSetting_Changed">
+                                        <ComboBoxItem Content="White"/>
+                                        <ComboBoxItem Content="Lime"/>
+                                        <ComboBoxItem Content="Red"/>
+                                        <ComboBoxItem Content="Cyan"/>
+                                        <ComboBoxItem Content="Yellow"/>
+                                    </ComboBox>
+                                </DockPanel>
 
-                <!-- Row 10: Live ASCII Preview Container -->
-                <Border Grid.Row="10" x:Name="PreviewBorder" 
-                        Background="#101010" CornerRadius="6" BorderBrush="#333333" BorderThickness="1"
-                        MinHeight="80" MaxHeight="140" Margin="0,0,0,10">
-                    <Viewbox Stretch="Uniform" Margin="4">
-                        <TextBlock x:Name="PreviewText" Text="Live ASCII Preview"
-                                   FontFamily="Consolas, Courier New, Monospace"
-                                   Foreground="White" FontWeight="Bold"
-                                   TextAlignment="Left"/>
-                    </Viewbox>
+                                <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal">
+                                    <CheckBox x:Name="MatchColorsCheck" Content="Match video colors"
+                                              Style="{StaticResource ModernCheckBox}" Margin="0,0,20,0"
+                                              ToolTip="Color every character like the video at that spot, instead of one color. Makes the file about twice as big"
+                                              Checked="MatchColorsCheck_Changed" Unchecked="MatchColorsCheck_Changed"/>
+                                    <CheckBox x:Name="InvertCheck" Content="Invert"
+                                              Style="{StaticResource ModernCheckBox}"
+                                              ToolTip="Swap dark and light characters, like a photo negative"
+                                              Checked="StyleSetting_Changed" Unchecked="StyleSetting_Changed"/>
+                                </StackPanel>
+
+                                <TextBlock Grid.Row="5" Text="Width:" Style="{StaticResource SettingLabel}"/>
+                                <DockPanel Grid.Row="5" Grid.Column="1">
+                                    <TextBlock DockPanel.Dock="Right" Style="{StaticResource SliderValue}"
+                                               ToolTip="Characters per row"
+                                               Text="{Binding Value, ElementName=VideoWidthSlider, StringFormat={}{0:0}}"/>
+                                    <Slider x:Name="VideoWidthSlider" Style="{StaticResource ModernSlider}"
+                                            Minimum="50" Maximum="400" Value="150"
+                                            VerticalAlignment="Center"
+                                            ToolTip="Characters per row. More gives a sharper picture, a bigger file and slower playback"
+                                            ValueChanged="StyleSetting_Changed"/>
+                                </DockPanel>
+
+                                <TextBlock Grid.Row="6" Text="Contrast:" Style="{StaticResource SettingLabel}"/>
+                                <DockPanel Grid.Row="6" Grid.Column="1">
+                                    <TextBlock DockPanel.Dock="Right" Style="{StaticResource SliderValue}"
+                                               ToolTip="Contrast multiplier"
+                                               Text="{Binding Value, ElementName=ContrastSlider, StringFormat={}{0:0.0}}"/>
+                                    <Slider x:Name="ContrastSlider" Style="{StaticResource ModernSlider}"
+                                            Minimum="0.5" Maximum="2.5" Value="1.0"
+                                            VerticalAlignment="Center"
+                                            ToolTip="1.0 leaves the video as it is. Higher makes darks darker and lights lighter"
+                                            ValueChanged="StyleSetting_Changed"/>
+                                </DockPanel>
+
+                                <TextBlock Grid.Row="7" Text="Sound Preset:" Style="{StaticResource SettingLabel}"/>
+                                <ComboBox Grid.Row="7" Grid.Column="1" x:Name="SoundPresetComboBox"
+                                          VerticalAlignment="Center"
+                                          Style="{StaticResource ModernComboBox}"
+                                          ToolTip="A ready-made sound. Fills in the audio settings below, which you can still change"
+                                          SelectionChanged="SoundPresetComboBox_SelectionChanged"/>
+
+                                <TextBlock Grid.Row="8" Text="Audio:" Style="{StaticResource SettingLabel}"/>
+                                <CheckBox Grid.Row="8" Grid.Column="1" x:Name="BitCrushCheck" Content="Crush Audio" IsChecked="True"
+                                          Style="{StaticResource ModernCheckBox}"
+                                          ToolTip="Lo-fi effect: lowers the bit depth and sample rate. Off keeps the original sound"
+                                          Checked="SoundSetting_Changed" Unchecked="SoundSetting_Changed"/>
+
+                                <Grid Grid.Row="9" Grid.Column="1"
+                                      IsEnabled="{Binding ElementName=BitCrushCheck, Path=IsChecked}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Bits" Style="{StaticResource SmallLabel}" Margin="0,0,8,0"/>
+                                    <Slider Grid.Column="1" x:Name="BitDepthSlider" Style="{StaticResource ModernSlider}"
+                                            Minimum="2" Maximum="16" Value="9" VerticalAlignment="Center"
+                                            ToolTip="Bit depth. Lower is grittier and noisier"
+                                            ValueChanged="SoundSetting_Changed"/>
+                                    <TextBlock Grid.Column="2" Style="{StaticResource SliderValue}" Width="24"
+                                               ToolTip="Bit depth"
+                                               Text="{Binding Value, ElementName=BitDepthSlider, StringFormat={}{0:0}}"/>
+                                    <TextBlock Grid.Column="3" Text="Downsample" Style="{StaticResource SmallLabel}" Margin="14,0,8,0"/>
+                                    <Slider Grid.Column="4" x:Name="DownsampleSlider" Style="{StaticResource ModernSlider}"
+                                            Minimum="2" Maximum="30" Value="10" VerticalAlignment="Center"
+                                            ToolTip="How much the sample rate is reduced. Higher is more muffled and metallic"
+                                            ValueChanged="SoundSetting_Changed"/>
+                                    <TextBlock Grid.Column="5" Style="{StaticResource SliderValue}" Width="24"
+                                               ToolTip="Downsample factor"
+                                               Text="{Binding Value, ElementName=DownsampleSlider, StringFormat={}{0:0}}"/>
+                                </Grid>
+
+                                <TextBlock Grid.Row="10" Text="Also Export:" Style="{StaticResource SettingLabel}"/>
+                                <ComboBox Grid.Row="10" Grid.Column="1" x:Name="ExportComboBox" SelectedIndex="0"
+                                          VerticalAlignment="Center"
+                                          Style="{StaticResource ModernComboBox}"
+                                          ToolTip="Also render a standard video file next to the .asciiv file. This is slow: it can take several minutes">
+                                    <ComboBoxItem Content="Nothing (.asciiv only)" ToolTip="Fastest. The result plays in the built-in player"/>
+                                    <ComboBoxItem Content="MP4 video" ToolTip="Plays almost everywhere"/>
+                                    <ComboBoxItem Content="WebM video" ToolTip="Good for the web. Slowest to render"/>
+                                    <ComboBoxItem Content="Animated GIF (no sound)" ToolTip="Plays anywhere without a player, but has no sound and gets large quickly"/>
+                                </ComboBox>
+                            </Grid>
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+
+                <!-- RIGHT: live preview -->
+                <Border Grid.Column="2"
+                        Background="{StaticResource PanelBackgroundBrush}" CornerRadius="6"
+                        BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1"
+                        ToolTip="Shows frames as they are converted">
+                    <Grid>
+                        <Viewbox Stretch="Uniform" Margin="8">
+                            <controls:AsciiFrameView x:Name="PreviewView"/>
+                        </Viewbox>
+                        <TextBlock x:Name="PreviewPlaceholder" Text="Live ASCII Preview"
+                                   Foreground="{StaticResource PlaceholderTextBrush}" FontSize="18"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
                 </Border>
-
-                <!-- Row 11: Play Button -->
-                <Button Grid.Row="11" x:Name="PlayButton" 
-                        Style="{StaticResource GradientRoundedButtonStyle}" 
-                        Content="Play Last Output" Click="PlayButton_Click" 
-                        Height="45"/>
             </Grid>
         </Grid>
     </Border>

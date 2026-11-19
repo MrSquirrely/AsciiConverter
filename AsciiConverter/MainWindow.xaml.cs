@@ -4,10 +4,6 @@ using ASCIIV.Player;
 
 using Microsoft.Win32;
 
-using NAudio.Wave;
-
-using OpenCvSharp;
-
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -25,31 +21,13 @@ namespace ASCIIV.Converter;
 /// Interaction logic for MainWindow.xaml
 /// </summary>
 public partial class MainWindow {
-    // The ASCII ramps: characters sorted from darkest (@) to lightest (space)
-    private const string StandardRamp = "@%#*+=-:. ";
-    private const string HighDetailRamp = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`' ";
-    private const string BlockRamp = "█▓▒░ ";
-    private const string BinaryRamp = "01";
-    private const string GlitchRamp = "@%#*+=~-:,. ";
-    private const string OptimizedRamp = "@&%QWNM0gB$#DR8mHXKAUbGOpV4d9h6PkqwSE2]ayjxY5Zoen[ult13If}C{iF|(7J)vTLs?z/*cr!+<>;=^,_:'-. ";
-
-    // The live preview is refreshed once every this many frames
-    private const int PreviewInterval = 6;
-
-    // Reported as the progress value while the amount of remaining work is unknown
-    private const double IndeterminateProgress = -1;
-
     private const string FFmpegFolderName = "ffmpeg";
+    private const string CustomPresetName = "Custom";
+    private const string VideoFileFilter =
+        "Video Files|*.mp4;*.webm;*.gif;*.avi;*.mov;*.mkv|All Files|*.*";
 
-    // Finished .asciiv and .mp4 files
-    private static readonly string OutputFolder = Path.Combine(GetUserMediaFolder(), "ASCIIV");
-
-    // Downloaded tools, kept outside the install folder so the app also works from a read-only location
-    private static readonly string AppDataFolder = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ASCIIV");
-
-    // Intermediate files of a running conversion
-    private static readonly string WorkFolder = Path.Combine(Path.GetTempPath(), "ASCIIV");
+    // The entries of the "Also Export" list, in the order they appear there
+    private static readonly ExportFormat[] ExportChoices = [ExportFormat.None, ExportFormat.Mp4, ExportFormat.WebM, ExportFormat.Gif];
 
     // This string will hold the path to the user's video
     private string _inputVideoPath = string.Empty;
@@ -66,9 +44,50 @@ public partial class MainWindow {
     // Set when the window is closed mid-conversion, so it closes once cleanup has finished
     private bool _closeAfterConversion;
 
+    // The "Custom" entries of the preset lists, shown once a setting no longer matches a preset
+    private readonly ComboBoxItem _customStyleItem = new() {
+        Content = CustomPresetName,
+        ToolTip = "Your own combination of settings"
+    };
+
+    private readonly ComboBoxItem _customSoundItem = new() {
+        Content = CustomPresetName,
+        ToolTip = "Your own audio settings"
+    };
+
+    // True while a preset is filling in the controls, so those changes are not mistaken for the user's
+    private bool _isApplyingPreset;
+
+    // False until the window has loaded, because controls raise change events while they are created
+    private bool _isReady;
+
     public MainWindow() {
         InitializeComponent();
+
+        foreach (StylePreset preset in (StylePreset[])[StylePreset.Default, .. StylePreset.All]) {
+            PresetComboBox.Items.Add(new ComboBoxItem { Content = preset.Name, Tag = preset, ToolTip = preset.Description });
+        }
+
+        PresetComboBox.Items.Add(_customStyleItem);
+
+        foreach (SoundPreset preset in SoundPreset.All) {
+            SoundPresetComboBox.Items.Add(new ComboBoxItem { Content = preset.Name, Tag = preset, ToolTip = preset.Description });
+        }
+
+        SoundPresetComboBox.Items.Add(_customSoundItem);
+
+        foreach (FrameFont font in FrameFont.All) {
+            FontComboBox.Items.Add(new ComboBoxItem { Content = font.DisplayName, Tag = font });
+        }
+
+        ResetSettings();
     }
+
+    // The stored name of the font chosen in the list; empty for the default font
+    private string SelectedFontName => FontComboBox.SelectedItem is ComboBoxItem { Tag: FrameFont font } ? font.Name : string.Empty;
+
+    // The colour chosen in the list, or the custom colour when nothing is selected there
+    private string SelectedColorName => ColorComboBox.SelectedItem is ComboBoxItem item ? item.Content.ToString()! : _customColorHex;
 
     protected override void OnClosing(CancelEventArgs e) {
         if (_conversionCts is not null) {
@@ -83,14 +102,11 @@ public partial class MainWindow {
         base.OnClosing(e);
     }
 
-    private static string GetUserMediaFolder() {
-        string videos = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
-        return string.IsNullOrEmpty(videos)
-            ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
-            : videos;
-    }
+    // --- STARTUP ---
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e) {
+        _isReady = true;
+
         bool hasFFmpeg = await InitializeFFmpeg();
         LoadButton.IsEnabled = true;
 
@@ -102,7 +118,7 @@ public partial class MainWindow {
         StatusText.Text = "Ready (FFmpeg unavailable)";
         CustomMessageBox.Show(
             "FFmpeg could not be found or downloaded.\n\n"
-            + "Videos can still be converted, but without audio, and MP4 export will not work.\n\n"
+            + "Videos can still be converted, but without audio, and exporting to MP4, WebM or GIF will not work.\n\n"
             + "Check your internet connection and restart the application to try again.",
             "FFmpeg Unavailable",
             CustomMessageBox.MessageBoxType.Warning,
@@ -112,7 +128,7 @@ public partial class MainWindow {
     // Uses an FFmpeg next to the application if there is one, otherwise downloads it once per user
     private async Task<bool> InitializeFFmpeg() {
         string bundledFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, FFmpegFolderName);
-        string downloadFolder = Path.Combine(AppDataFolder, FFmpegFolderName);
+        string downloadFolder = Path.Combine(AppPaths.AppDataFolder, FFmpegFolderName);
 
         foreach (string folder in (string[])[bundledFolder, downloadFolder]) {
             if (HasFFmpeg(folder)) {
@@ -140,9 +156,11 @@ public partial class MainWindow {
         return File.Exists(Path.Combine(folder, "ffmpeg.exe")) && File.Exists(Path.Combine(folder, "ffprobe.exe"));
     }
 
+    // --- SETTINGS ---
+
     private void LoadButton_Click(object sender, RoutedEventArgs e) {
         OpenFileDialog openFileDialog = new() {
-            Filter = "Video Files|*.mp4;*.avi;*.mov"
+            Filter = VideoFileFilter
         };
 
         if (openFileDialog.ShowDialog() != true) {
@@ -155,41 +173,204 @@ public partial class MainWindow {
         ConvertButton.IsEnabled = true;
     }
 
+    private void ResetButton_Click(object sender, RoutedEventArgs e) {
+        ResetSettings();
+        StatusText.Text = "Settings reset.";
+    }
+
+    // Puts every output setting back to its starting value. The loaded video and project name are kept
+    private void ResetSettings() {
+        // Forget the custom colour and show the picker button in its normal colours again
+        _customColorHex = "#FFFFFF";
+        if (CustomColorButton.Template?.FindName("butonBorder", CustomColorButton) is Border swatch) {
+            swatch.ClearValue(Border.BackgroundProperty);
+        }
+
+        ApplyStylePreset(StylePreset.Default);
+        ExportComboBox.SelectedIndex = 0;
+    }
+
+    private void PresetComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) {
+        if (!_isApplyingPreset && (PresetComboBox.SelectedItem is ComboBoxItem { Tag: StylePreset preset })) {
+            ApplyStylePreset(preset);
+        }
+    }
+
+    private void SoundPresetComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) {
+        if (!_isApplyingPreset && (SoundPresetComboBox.SelectedItem is ComboBoxItem { Tag: SoundPreset preset })) {
+            ApplySoundPreset(preset);
+            // The sound no longer belongs to the chosen style preset
+            MarkStyleAsCustom();
+        }
+    }
+
+    // Fills in every look and sound setting, and shows the preset as selected in both lists
+    private void ApplyStylePreset(StylePreset preset) {
+        _isApplyingPreset = true;
+        try {
+            TextStyleComboBox.Text = preset.TextStyle;
+            SelectPresetItem(FontComboBox, FrameFont.Get(preset.FontName), (ComboBoxItem)FontComboBox.Items[0]);
+            SelectColor(preset.ColorName);
+            MatchColorsCheck.IsChecked = preset.MatchColors;
+            VideoWidthSlider.Value = preset.Width;
+            ContrastSlider.Value = preset.Contrast;
+            InvertCheck.IsChecked = preset.Invert;
+            SelectPresetItem(PresetComboBox, preset, _customStyleItem);
+        }
+        finally {
+            _isApplyingPreset = false;
+        }
+
+        ApplySoundPreset(preset.Sound);
+    }
+
+    private void ApplySoundPreset(SoundPreset preset) {
+        _isApplyingPreset = true;
+        try {
+            BitCrushCheck.IsChecked = preset.BitCrush;
+            BitDepthSlider.Value = preset.BitDepth;
+            DownsampleSlider.Value = preset.DownsampleFactor;
+            SelectPresetItem(SoundPresetComboBox, preset, _customSoundItem);
+        }
+        finally {
+            _isApplyingPreset = false;
+        }
+    }
+
+    // Selects the list entry that carries the preset, or the "Custom" entry when there is none
+    private static void SelectPresetItem(ComboBox comboBox, object preset, ComboBoxItem customItem) {
+        foreach (ComboBoxItem item in comboBox.Items) {
+            if (Equals(item.Tag, preset)) {
+                comboBox.SelectedItem = item;
+                return;
+            }
+        }
+
+        comboBox.SelectedItem = customItem;
+    }
+
+    private void FontComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) {
+        PreviewView.FontName = SelectedFontName;
+        MarkStyleAsCustom();
+    }
+
+    // The user changed a look setting by hand
+    private void StyleSetting_Changed(object sender, RoutedEventArgs e) {
+        MarkStyleAsCustom();
+    }
+
+    // The user changed an audio setting by hand
+    private void SoundSetting_Changed(object sender, RoutedEventArgs e) {
+        if (!_isReady || _isApplyingPreset) {
+            return;
+        }
+
+        _isApplyingPreset = true;
+        try {
+            SoundPresetComboBox.SelectedItem = _customSoundItem;
+        }
+        finally {
+            _isApplyingPreset = false;
+        }
+
+        MarkStyleAsCustom();
+    }
+
+    private void MarkStyleAsCustom() {
+        if (!_isReady || _isApplyingPreset) {
+            return;
+        }
+
+        _isApplyingPreset = true;
+        try {
+            PresetComboBox.SelectedItem = _customStyleItem;
+        }
+        finally {
+            _isApplyingPreset = false;
+        }
+    }
+
+    private void MatchColorsCheck_Changed(object sender, RoutedEventArgs e) {
+        // A single text colour means nothing while every character takes its colour from the video
+        ColorPanel.IsEnabled = MatchColorsCheck.IsChecked != true;
+        MarkStyleAsCustom();
+    }
+
+    private void CustomColorButton_OnClick(object sender, RoutedEventArgs e) {
+        ColorPickerWindow picker = new() { Owner = this };
+        if (picker.ShowDialog() == true) {
+            SetCustomColor(picker.SelectedColor);
+            MarkStyleAsCustom();
+        }
+    }
+
+    // Selects a named colour from the list, or shows any other colour as the custom colour
+    private void SelectColor(string colorName) {
+        foreach (ComboBoxItem item in ColorComboBox.Items) {
+            if (string.Equals(item.Content.ToString(), colorName, StringComparison.OrdinalIgnoreCase)) {
+                ColorComboBox.SelectedItem = item;
+                PreviewView.Foreground = ParseBrush(colorName);
+                return;
+            }
+        }
+
+        if (ParseBrush(colorName) is SolidColorBrush brush) {
+            SetCustomColor(brush.Color);
+        }
+    }
+
+    private void SetCustomColor(Color color) {
+        _customColorHex = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+
+        SolidColorBrush brush = new(color);
+        if (CustomColorButton.Template.FindName("butonBorder", CustomColorButton) is Border swatch) {
+            swatch.Background = brush;
+        }
+
+        ColorComboBox.SelectedIndex = -1;
+        PreviewView.Foreground = brush;
+    }
+
+    private static Brush ParseBrush(string colorName) {
+        try {
+            return new SolidColorBrush((Color)ColorConverter.ConvertFromString(colorName));
+        }
+        catch (FormatException) {
+            return Brushes.White;
+        }
+    }
+
+    // --- CONVERSION ---
+
     private async void ConvertButton_Click(object sender, RoutedEventArgs e) {
         if (string.IsNullOrEmpty(_inputVideoPath)) {
             return;
         }
 
         // Capture the UI state here, on the UI thread
-        string selectedColor = ColorComboBox.SelectedItem is ComboBoxItem item ? item.Content.ToString()! : _customColorHex;
-        string styleText = TextStyleComboBox.Text;
+        string selectedColor = SelectedColorName;
         ConversionOptions options = new(
             VideoPath: _inputVideoPath,
+            OutputFolder: AppPaths.OutputFolder,
+            WorkFolder: AppPaths.WorkFolder,
             ProjectName: ProjectSanitizer.SanitizeProjectName(ProjectNameText.Text),
-            Ramp: styleText switch {
-                "Standard" => StandardRamp,
-                "Binary" => BinaryRamp,
-                "High Detail" => HighDetailRamp,
-                "Blocks" => BlockRamp,
-                "Glitch" => GlitchRamp,
-                "Optimized" => OptimizedRamp,
-                // Anything else typed into the box is used as a custom ramp
-                _ => string.IsNullOrEmpty(styleText) ? StandardRamp : styleText
-            },
+            Ramp: AsciiRamps.Resolve(TextStyleComboBox.Text),
             Width: (int)VideoWidthSlider.Value,
             Contrast: ContrastSlider.Value,
             Invert: InvertCheck.IsChecked == true,
             ColorName: selectedColor,
+            MatchColors: MatchColorsCheck.IsChecked == true,
             BitCrush: BitCrushCheck.IsChecked == true,
             BitDepth: (int)BitDepthSlider.Value,
             DownsampleFactor: (int)DownsampleSlider.Value,
-            CreateMp4: ToMp4Check.IsChecked == true);
+            Export: ExportChoices[Math.Clamp(ExportComboBox.SelectedIndex, 0, ExportChoices.Length - 1)],
+            FontName: SelectedFontName);
 
         // Created here, on the UI thread, so the callbacks are marshalled back to it
-        ConversionUi ui = new(
+        ConversionProgress progress = new(
             Percent: new Progress<double>(ShowProgress),
             Status: new Progress<string>(text => StatusText.Text = text),
-            Preview: new Progress<string>(text => PreviewText.Text = text));
+            Preview: new Progress<AsciiFrame>(ShowPreview));
 
         _conversionCts = new CancellationTokenSource();
         CancellationToken token = _conversionCts.Token;
@@ -200,11 +381,11 @@ public partial class MainWindow {
         CancelButton.IsEnabled = true;
         StatusText.Text = "Converting... Please wait.";
         ConvertProgressBar.Value = 0;
-        PreviewText.Foreground = ParseBrush(selectedColor);
+        PreviewView.Foreground = ParseBrush(selectedColor);
 
         ConversionResult? result = null;
         try {
-            result = await Task.Run(() => ConvertVideo(options, ui, token), token);
+            result = await Task.Run(() => VideoConverter.ConvertAsync(options, progress, token), token);
 
             _lastCreatedFilePath = result.AsciivPath;
             ConvertProgressBar.Value = 100;
@@ -239,6 +420,12 @@ public partial class MainWindow {
         }
     }
 
+    private void CancelButton_Click(object sender, RoutedEventArgs e) {
+        _conversionCts?.Cancel();
+        CancelButton.IsEnabled = false;
+        StatusText.Text = "Cancelling conversion...";
+    }
+
     private void ShowProgress(double percent) {
         ConvertProgressBar.IsIndeterminate = percent < 0;
         if (percent >= 0) {
@@ -246,10 +433,15 @@ public partial class MainWindow {
         }
     }
 
+    private void ShowPreview(AsciiFrame frame) {
+        PreviewPlaceholder.Visibility = Visibility.Collapsed;
+        PreviewView.Frame = frame;
+    }
+
     private void ShowCompletionMessage(ConversionResult result) {
         string message = "Conversion Complete! Saved:\n" + result.AsciivPath;
-        if (result.Mp4Path is not null) {
-            message += "\n" + result.Mp4Path;
+        if (result.ExportPath is not null) {
+            message += "\n" + result.ExportPath;
         }
 
         if (result.AudioWarning is not null) {
@@ -259,193 +451,7 @@ public partial class MainWindow {
         CustomMessageBox.Show(message, "Success", CustomMessageBox.MessageBoxType.Ok, this);
     }
 
-    private static Brush ParseBrush(string colorName) {
-        try {
-            return new SolidColorBrush((Color)ColorConverter.ConvertFromString(colorName));
-        }
-        catch (FormatException) {
-            return Brushes.White;
-        }
-    }
-
-    private void CancelButton_Click(object sender, RoutedEventArgs e) {
-        _conversionCts?.Cancel();
-        CancelButton.IsEnabled = false;
-        StatusText.Text = "Cancelling conversion...";
-    }
-
-    // Runs on a background thread: everything it shows goes through the progress callbacks in ConversionUi
-    private static async Task<ConversionResult> ConvertVideo(ConversionOptions options, ConversionUi ui, CancellationToken cancellationToken) {
-        Directory.CreateDirectory(OutputFolder);
-        Directory.CreateDirectory(WorkFolder);
-
-        // Unique intermediate filenames so parallel instances never collide
-        string workId = Guid.NewGuid().ToString("N");
-        string framesPath = Path.Combine(WorkFolder, $"{workId}_frames.bin");
-        string mp3Path = Path.Combine(WorkFolder, $"{workId}_audio.mp3");
-        string wavPath = Path.Combine(WorkFolder, $"{workId}_audio.wav");
-
-        try {
-            (string? audioPath, string? audioWarning) = await ExtractAudio(options, mp3Path, wavPath, cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
-
-            AsciivHeader header = WriteFrames(options, framesPath, ui, cancellationToken);
-
-            string asciivPath = Path.Combine(OutputFolder, options.ProjectName + AsciivFormat.FileExtension);
-            await AsciivWriter.WriteAsync(asciivPath, header, audioPath, framesPath, cancellationToken);
-
-            string? mp4Path = null;
-            if (options.CreateMp4) {
-                mp4Path = Path.Combine(OutputFolder, options.ProjectName + ".mp4");
-                await RenderMp4(asciivPath, audioPath, mp4Path, ui, cancellationToken);
-            }
-
-            return new ConversionResult(asciivPath, mp4Path, audioWarning);
-        }
-        finally {
-            // Intermediate files are removed even on failure or cancellation
-            foreach (string path in (string[])[framesPath, mp3Path, wavPath]) {
-                try {
-                    File.Delete(path);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) {
-                    Debug.WriteLine("Cleanup warning: " + ex.Message);
-                }
-            }
-        }
-    }
-
-    // Returns the audio file to embed, or a warning explaining why the output has no sound
-    private static async Task<(string? AudioPath, string? Warning)> ExtractAudio(
-        ConversionOptions options,
-        string mp3Path,
-        string wavPath,
-        CancellationToken cancellationToken) {
-
-        try {
-            IMediaInfo mediaInfo = await FFmpeg.GetMediaInfo(options.VideoPath, cancellationToken);
-            if (!mediaInfo.AudioStreams.Any()) {
-                return (null, "The video has no audio track, so the output is silent.");
-            }
-
-            await FFmpeg.Conversions.New()
-                .AddStream(mediaInfo.AudioStreams)
-                .SetOutput(mp3Path)
-                .Start(cancellationToken);
-        }
-        catch (OperationCanceledException) {
-            throw;
-        }
-        catch (Exception ex) {
-            Debug.WriteLine("Audio extraction failed: " + ex);
-            return (null, "The audio could not be extracted, so the output is silent.\n" + ex.Message);
-        }
-
-        if (!options.BitCrush) {
-            return (mp3Path, null);
-        }
-
-        await using AudioFileReader reader = new(mp3Path);
-        BitCrusher crusher = new(reader);
-        crusher.SetBitDepth(options.BitDepth);
-        crusher.SetDownSampleFactor(options.DownsampleFactor);
-        WaveFileWriter.CreateWaveFile16(wavPath, crusher);
-        return (wavPath, null);
-    }
-
-    // Converts every video frame to palette indices and appends them to framesPath
-    private static AsciivHeader WriteFrames(ConversionOptions options, string framesPath, ConversionUi ui, CancellationToken cancellationToken) {
-        // One array lookup per pixel instead of floating-point maths
-        (string palette, byte[] indices) = AsciiRamp.BuildIndexedLookup(options.Ramp, options.Contrast, options.Invert);
-
-        using VideoCapture capture = new(options.VideoPath);
-        if (!capture.IsOpened()) {
-            throw new InvalidOperationException("The video could not be opened.");
-        }
-
-        double fps = capture.Get(VideoCaptureProperties.Fps);
-        if (!double.IsFinite(fps) || (fps <= 0)) {
-            fps = 30.0;
-        }
-
-        // Only an estimate: some containers report a frame count that is slightly off
-        int estimatedFrames = (int)capture.Get(VideoCaptureProperties.FrameCount);
-
-        using FileStream frameStream = new(framesPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 64 * 1024);
-        using Mat frame = new();
-        using Mat resized = new();
-        using Mat gray = new();
-
-        int width = options.Width;
-        int height = 0;
-        byte[] cells = [];
-        int frameCount = 0;
-        int lastPercent = -1;
-
-        while (capture.Read(frame) && !frame.Empty()) {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (height == 0) {
-                // Characters are about twice as tall as they are wide, so only half the rows are needed
-                double aspectRatio = (double)frame.Height / frame.Width;
-                height = Math.Max(1, (int)(width * aspectRatio * 0.5));
-                cells = new byte[width * height];
-            }
-
-            // Area interpolation averages the source pixels, which gives the cleanest result when shrinking
-            Cv2.Resize(frame, resized, new OpenCvSharp.Size(width, height), 0, 0, InterpolationFlags.Area);
-            Cv2.CvtColor(resized, gray, ColorConversionCodes.BGR2GRAY);
-
-            // The unsafe indexer avoids per-pixel bounds checking
-            Mat.UnsafeIndexer<byte> pixels = gray.GetUnsafeGenericIndexer<byte>();
-            for (int y = 0; y < height; y++) {
-                int rowStart = y * width;
-                for (int x = 0; x < width; x++) {
-                    cells[rowStart + x] = indices[pixels[y, x]];
-                }
-            }
-
-            frameStream.Write(cells);
-            frameCount++;
-
-            if ((frameCount % PreviewInterval) == 0) {
-                ui.Preview.Report(AsciivReader.ComposeFrameText(cells, width, height, palette));
-            }
-
-            if (estimatedFrames > 0) {
-                int percent = Math.Min(100, (int)(((double)frameCount / estimatedFrames) * 100));
-                if (percent > lastPercent) {
-                    lastPercent = percent;
-                    ui.Percent.Report(percent);
-                }
-            }
-        }
-
-        if (frameCount == 0) {
-            throw new InvalidOperationException("No frames could be read from the video.");
-        }
-
-        return new AsciivHeader(fps, options.ColorName, width, height, frameCount, palette);
-    }
-
-    private static async Task RenderMp4(string asciivPath, string? audioPath, string mp4Path, ConversionUi ui, CancellationToken cancellationToken) {
-        ui.Status.Report("Rendering MP4... (This may take a while)");
-        ui.Percent.Report(IndeterminateProgress);
-
-        // Frames are read on demand, so the whole video never has to fit in memory
-        using AsciivReader reader = AsciivReader.Open(asciivPath);
-        IEnumerable<string> frames = Enumerable.Range(0, reader.FrameCount).Select(reader.ReadFrame);
-
-        await AsciiRenderer.RenderToMp4(
-            frames,
-            reader.FramesPerSecond,
-            audioPath ?? string.Empty,
-            mp4Path,
-            reader.ColorName,
-            reader.FrameCount,
-            ui.Percent,
-            cancellationToken);
-    }
+    // --- OUTPUT ---
 
     private void PlayButton_Click(object sender, RoutedEventArgs e) {
         // Prefer the file created by the most recent conversion
@@ -457,12 +463,12 @@ public partial class MainWindow {
             string safeName = ProjectSanitizer.SanitizeProjectName(ProjectNameText.Text, string.Empty);
             path = string.IsNullOrEmpty(safeName)
                 ? string.Empty
-                : Path.Combine(OutputFolder, safeName + AsciivFormat.FileExtension);
+                : Path.Combine(AppPaths.OutputFolder, safeName + AsciivFormat.FileExtension);
         }
 
         if (string.IsNullOrEmpty(path) || !File.Exists(path)) {
             CustomMessageBox.Show(
-                "Please convert a video first or ensure the Project Name matches an existing file in:\n" + OutputFolder,
+                "Please convert a video first or ensure the Project Name matches an existing file in:\n" + AppPaths.OutputFolder,
                 "Nothing to Play",
                 CustomMessageBox.MessageBoxType.Warning,
                 this);
@@ -473,14 +479,22 @@ public partial class MainWindow {
         player.Show();
     }
 
-    private void ToMp4Check_Checked(object sender, RoutedEventArgs e) {
-        CustomMessageBox.Show(
-            "Warning: Creating an MP4 file is a slow process.\n\n"
-            + "Depending on the video length, this could take several minutes to render frame-by-frame.",
-            "Performance Warning",
-            CustomMessageBox.MessageBoxType.Warning,
-            this);
+    private void OpenOutputFolderButton_Click(object sender, RoutedEventArgs e) {
+        try {
+            // The folder does not exist until the first conversion, so make sure there is something to show
+            Directory.CreateDirectory(AppPaths.OutputFolder);
+            using Process? explorer = Process.Start(new ProcessStartInfo(AppPaths.OutputFolder) { UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception) {
+            CustomMessageBox.Show(
+                "The output folder could not be opened:\n" + AppPaths.OutputFolder + "\n\n" + ex.Message,
+                "Error",
+                CustomMessageBox.MessageBoxType.Warning,
+                this);
+        }
     }
+
+    // --- WINDOW ---
 
     private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e) {
         if (e.ChangedButton == MouseButton.Left) {
@@ -495,38 +509,4 @@ public partial class MainWindow {
     private void CloseButton_Click(object sender, RoutedEventArgs e) {
         Close();
     }
-
-    private void CustomColorButton_OnClick(object sender, RoutedEventArgs e) {
-        ColorPickerWindow picker = new() { Owner = this };
-        if (picker.ShowDialog() != true) {
-            return;
-        }
-
-        Color color = picker.SelectedColor;
-        _customColorHex = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
-        if (CustomColorButton.Template.FindName("butonBorder", CustomColorButton) is Border swatch) {
-            swatch.Background = new SolidColorBrush(color);
-        }
-
-        ColorComboBox.SelectedIndex = -1;
-        PreviewText.Foreground = new SolidColorBrush(color);
-    }
-
-    private sealed record ConversionOptions(
-        string VideoPath,
-        string ProjectName,
-        string Ramp,
-        int Width,
-        double Contrast,
-        bool Invert,
-        string ColorName,
-        bool BitCrush,
-        int BitDepth,
-        int DownsampleFactor,
-        bool CreateMp4);
-
-    private sealed record ConversionResult(string AsciivPath, string? Mp4Path, string? AudioWarning);
-
-    // Progress callbacks of a conversion. A negative percentage means the remaining work is unknown
-    private sealed record ConversionUi(IProgress<double> Percent, IProgress<string> Status, IProgress<string> Preview);
 }

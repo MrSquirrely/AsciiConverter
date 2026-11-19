@@ -131,7 +131,8 @@ public partial class PlayerWindow {
 
         try {
             _reader = AsciivReader.Open(filePath);
-            DisplayText.Foreground = ParseBrush(_reader.ColorName);
+            FrameView.Foreground = ParseBrush(_reader.ColorName);
+            FrameView.FontName = _reader.FontName;
 
             if (_reader.HasAudio) {
                 byte[] audioBytes = _reader.ReadAudio();
@@ -156,7 +157,7 @@ public partial class PlayerWindow {
         }
         catch (Exception ex) {
             StopPlayback();
-            DisplayText.Text = string.Empty;
+            FrameView.Frame = AsciiFrame.Empty;
             CustomMessageBox.Show("Error loading file: " + ex.Message, "Error", CustomMessageBox.MessageBoxType.Warning, this);
         }
     }
@@ -266,7 +267,7 @@ public partial class PlayerWindow {
         }
 
         try {
-            DisplayText.Text = _reader.ReadFrame(index);
+            FrameView.Frame = _reader.GetFrame(index);
             _shownFrameIndex = index;
         }
         catch (IOException ex) {
@@ -427,7 +428,7 @@ public partial class PlayerWindow {
         _isLooping = !_isLooping;
         LoopButtonText.Opacity = _isLooping ? 1.0 : 0.6;
         LoopButton.BorderThickness = new Thickness(_isLooping ? 1.5 : 0);
-        LoopButton.BorderBrush = _isLooping ? Brushes.LightGreen : Brushes.Transparent;
+        LoopButton.BorderBrush = _isLooping ? (Brush)FindResource("ActiveToggleBorderBrush") : Brushes.Transparent;
     }
 
     private void ToggleFullScreen() {
@@ -442,7 +443,7 @@ public partial class PlayerWindow {
     }
 
     private void SaveSnapshot() {
-        if (string.IsNullOrEmpty(DisplayText.Text)) {
+        if (FrameView.Frame.IsEmpty) {
             return;
         }
 
@@ -473,31 +474,7 @@ public partial class PlayerWindow {
     }
 
     private void RenderToPng(string outputPath) {
-        const double fontSize = 24;
-        const double padding = 10;
-
-        Typeface typeface = new(DisplayText.FontFamily, DisplayText.FontStyle, DisplayText.FontWeight, DisplayText.FontStretch);
-        FormattedText text = new(
-            DisplayText.Text,
-            CultureInfo.CurrentCulture,
-            FlowDirection.LeftToRight,
-            typeface,
-            fontSize,
-            DisplayText.Foreground,
-            VisualTreeHelper.GetDpi(this).PixelsPerDip);
-
-        // Trailing spaces are part of the picture, so they count towards the width
-        double width = text.WidthIncludingTrailingWhitespace + (padding * 2);
-        double height = text.Height + (padding * 2);
-
-        DrawingVisual visual = new();
-        using (DrawingContext context = visual.RenderOpen()) {
-            context.DrawRectangle(Brushes.Black, null, new Rect(0, 0, width, height));
-            context.DrawText(text, new Point(padding, padding));
-        }
-
-        RenderTargetBitmap bitmap = new((int)Math.Ceiling(width), (int)Math.Ceiling(height), 96, 96, PixelFormats.Pbgra32);
-        bitmap.Render(visual);
+        BitmapSource bitmap = AsciiFrameView.RenderToBitmap(FrameView.Frame, FrameView.Foreground, FrameView.FontName);
 
         PngBitmapEncoder encoder = new();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));

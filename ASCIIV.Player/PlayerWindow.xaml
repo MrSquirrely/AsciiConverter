@@ -1,6 +1,7 @@
 <Window x:Class="ASCIIV.Player.PlayerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:ASCIIV.Core.Controls;assembly=ASCIIV.Core"
         Title="ASCII Player" Height="600" Width="800"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -12,13 +13,9 @@
         KeyDown="Window_KeyDown"
         FontFamily="{StaticResource PixelatedEleganceFont}">
 
-    <Border CornerRadius="10" BorderThickness="2" BorderBrush="{StaticResource MainGradientBrush}">
-        <Border.Background>
-            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                <GradientStop Color="#444" Offset="0.0"/>
-                <GradientStop Color="#222" Offset="1.0"/>
-            </LinearGradientBrush>
-        </Border.Background>
+    <Border CornerRadius="10" BorderThickness="2"
+            BorderBrush="{StaticResource MainGradientBrush}"
+            Background="{StaticResource WindowBackgroundBrush}">
 
         <Grid>
             <Grid.RowDefinitions>
@@ -26,9 +23,11 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <Border Grid.Row="0" 
-                    Background="#202020" 
-                    CornerRadius="8,8,0,0" 
+            <!-- Title bar -->
+            <Border Grid.Row="0"
+                    Background="{StaticResource TitleBarBackgroundBrush}"
+                    CornerRadius="8,8,0,0"
+                    ToolTip="Drag to move the window"
                     MouseDown="TitleBar_MouseDown"
                     Height="40">
                 <Grid>
@@ -37,23 +36,21 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock x:Name="WindowTitleText" 
-                               Text="ASCII Player" 
-                               Foreground="White" 
-                               VerticalAlignment="Center" 
-                               Margin="15,0,0,0"
-                               FontSize="16"
-                               Opacity="1.0"
-                               FontWeight="SemiBold"/>
+                    <TextBlock x:Name="WindowTitleText"
+                               Text="ASCII Player"
+                               Style="{StaticResource TitleBarTextStyle}"
+                               TextTrimming="CharacterEllipsis"/>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,5,0">
                         <Button Content="_" Click="MinimizeButton_Click"
-                                Style="{StaticResource TitleBarButtonStyle}" 
+                                Style="{StaticResource TitleBarButtonStyle}"
+                                ToolTip="Minimize"
                                 Width="40" Height="30"
                                 Padding="0,-10,0,0"/>
 
                         <Button Content="X" Click="CloseButton_Click"
-                                Style="{StaticResource TitleBarCloseButtonStyle}" 
+                                Style="{StaticResource TitleBarCloseButtonStyle}"
+                                ToolTip="Close the player"
                                 Width="40" Height="30"/>
                     </StackPanel>
                 </Grid>
@@ -65,29 +62,24 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Background="Black" Margin="2,0,2,0">
+                <!-- Video -->
+                <Border Grid.Row="0" Background="{StaticResource VideoBackgroundBrush}" Margin="2,0,2,0"
+                        ToolTip="Drop an .asciiv file here to play it">
                     <Viewbox Stretch="Uniform">
-                        <TextBlock x:Name="DisplayText" 
-                                   FontFamily="Consolas, Courier New, Monospace" 
-                                   Foreground="White"
-                                   FontWeight="Bold"
-                                   TextAlignment="Left"/>
+                        <controls:AsciiFrameView x:Name="FrameView"/>
                     </Viewbox>
                 </Border>
 
-                <Border Grid.Row="1" Padding="15" CornerRadius="0,0,8,8">
-                    <Border.Background>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                            <GradientStop Color="#333" Offset="0.0"/>
-                            <GradientStop Color="#111" Offset="1.0"/>
-                        </LinearGradientBrush>
-                    </Border.Background>
+                <!-- Controls -->
+                <Border Grid.Row="1" Padding="15" CornerRadius="0,0,8,8"
+                        Background="{StaticResource ControlBarBackgroundBrush}">
 
                     <StackPanel>
                         <Slider x:Name="ProgressSlider"
                                 Style="{StaticResource ModernSlider}"
                                 Minimum="0" Maximum="100" Value="0"
                                 Margin="0,0,0,15"
+                                ToolTip="Drag to jump to another part of the video (Left / Right: 5 seconds)"
                                 Thumb.DragStarted="ProgressSlider_DragStarted"
                                 Thumb.DragCompleted="ProgressSlider_DragCompleted"
                                 AutoToolTipPlacement="TopLeft"
@@ -102,9 +94,9 @@
 
                             <!-- Left controls: Play/Pause and Loop toggle -->
                             <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                <Button x:Name="PlayPauseButton" 
+                                <Button x:Name="PlayPauseButton"
                                         Style="{StaticResource GradientRoundedButtonStyle}"
-                                        Width="80" Height="38" 
+                                        Width="80" Height="38"
                                         Click="PlayPauseButton_Click"
                                         ToolTip="Play / Pause (Space)">
                                     <Path x:Name="PlayButtonIcon"
@@ -113,26 +105,26 @@
                                           Stretch="Uniform" Height="14" Width="14"/>
                                 </Button>
 
-                                <!-- UX: Loop toggle button -->
                                 <Button x:Name="LoopButton"
                                         Style="{StaticResource GradientRoundedButtonStyle}"
                                         Height="38" Width="50"
                                         Click="LoopButton_Click"
                                         Margin="10,0,0,0"
-                                        ToolTip="Toggle Loop (L)">
-                                    <TextBlock x:Name="LoopButtonText" Text="Loop" 
-                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
+                                        ToolTip="Start again automatically when the video ends (L)">
+                                    <TextBlock x:Name="LoopButtonText" Text="Loop"
+                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                                FontWeight="Bold" FontSize="11" Opacity="0.6"/>
                                 </Button>
                             </StackPanel>
 
-                            <!-- UX: Timecode display (Elapsed / Total) -->
+                            <!-- Timecode display (Elapsed / Total) -->
                             <TextBlock Grid.Column="1" x:Name="TimecodeText"
                                        Text="00:00 / 00:00"
                                        Style="{StaticResource ModernTextBlock}"
                                        VerticalAlignment="Center"
                                        Margin="20,0,0,0"
-                                       FontSize="13"/>
+                                       FontSize="13"
+                                       ToolTip="Time played / total length"/>
 
                             <!-- Right controls: Snapshot, FullScreen, Volume -->
                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
@@ -142,7 +134,7 @@
                                         Height="38" Width="50"
                                         Click="SnapshotButton_Click"
                                         Margin="0,0,10,0"
-                                        ToolTip="Save Snapshot (S)">
+                                        ToolTip="Save the current frame as a PNG image (S)">
                                     <Path Data="{StaticResource CameraIcon}"
                                           Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                           Stretch="Uniform" Width="16" Height="16"/>
@@ -153,26 +145,26 @@
                                         Height="38" Width="50"
                                         Click="FullScreenButton_OnClick"
                                         Margin="0,0,15,0"
-                                        ToolTip="Toggle Fullscreen (F)">
+                                        ToolTip="Toggle fullscreen (F, Esc to leave)">
                                     <Path x:Name="FullScreenIcon"
                                           Data="{StaticResource FullScreenIcon}"
                                           Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                           Stretch="Uniform" Width="14" Height="14"/>
                                 </Button>
 
-                                <TextBlock Text="Vol" 
-                                           Style="{StaticResource ModernTextBlock}" 
-                                           VerticalAlignment="Center" 
-                                           Margin="0,0,10,0"/>
+                                <TextBlock Text="Vol"
+                                           Style="{StaticResource ModernTextBlock}"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,10,0"
+                                           ToolTip="Volume"/>
 
-                                <Slider x:Name="VolumeSlider" 
+                                <Slider x:Name="VolumeSlider"
                                         Style="{StaticResource ModernSlider}"
-                                        Minimum="0" Maximum="1" Value="0.5" 
-                                        Width="100" 
+                                        Minimum="0" Maximum="1" Value="0.5"
+                                        Width="100"
                                         VerticalAlignment="Center"
-                                        ValueChanged="VolumeSlider_ValueChanged"
-                                        AutoToolTipPlacement="TopLeft"
-                                        AutoToolTipPrecision="0"/>
+                                        ToolTip="Volume (Up / Down, M to mute)"
+                                        ValueChanged="VolumeSlider_ValueChanged"/>
                             </StackPanel>
                         </Grid>
                     </StackPanel>

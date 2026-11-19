@@ -1,7 +1,7 @@
 ﻿<Window x:Class="ASCIIV.Core.Controls.ColorPickerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Custom Color" 
+        Title="Custom Color"
         Height="400" Width="400"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
@@ -11,13 +11,9 @@
         Background="Transparent"
         MouseDown="Window_MouseDown">
 
-    <Border CornerRadius="15" BorderThickness="2" BorderBrush="{StaticResource MainGradientBrush}">
-        <Border.Background>
-            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                <GradientStop Color="#444" Offset="0.0"/>
-                <GradientStop Color="#222" Offset="1.0"/>
-            </LinearGradientBrush>
-        </Border.Background>
+    <Border CornerRadius="15" BorderThickness="2"
+            BorderBrush="{StaticResource MainGradientBrush}"
+            Background="{StaticResource WindowBackgroundBrush}">
 
         <Grid Margin="20">
             <Grid.RowDefinitions>
@@ -29,14 +25,15 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <Border Grid.Row="0" x:Name="ColorPreviewBorder" 
+            <Border Grid.Row="0" x:Name="ColorPreviewBorder"
                     Height="80" CornerRadius="10" Margin="0,0,0,20"
-                    BorderBrush="White" BorderThickness="2">
+                    BorderBrush="White" BorderThickness="2"
+                    ToolTip="The color you have mixed, with its hex code">
                 <Border.Effect>
                     <DropShadowEffect Color="Black" BlurRadius="10" ShadowDepth="5" Opacity="0.5"/>
                 </Border.Effect>
-                <TextBlock x:Name="HexCodeText" 
-                           Text="#FFFFFF" 
+                <TextBlock x:Name="HexCodeText"
+                           Text="#FFFFFF"
                            VerticalAlignment="Center" HorizontalAlignment="Center"
                            Foreground="Black" FontSize="20" FontWeight="Bold">
                     <TextBlock.Effect>
@@ -45,46 +42,54 @@
                 </TextBlock>
             </Border>
 
+            <!-- The channel labels are tinted with their own colour on purpose -->
             <StackPanel Grid.Row="1" Margin="0,0,0,15">
                 <DockPanel LastChildFill="False">
                     <Label Content="Red" Foreground="#FF6666" FontSize="16" FontWeight="Bold"/>
-                    <TextBlock x:Name="RedValueText" Text="255" Foreground="White" 
-                               VerticalAlignment="Center" DockPanel.Dock="Right"/>
+                    <TextBlock x:Name="RedValueText" Text="255" Style="{StaticResource SmallLabel}"
+                               DockPanel.Dock="Right"/>
                 </DockPanel>
-                <Slider x:Name="RedSlider" Maximum="255" Value="255" 
-                        Style="{StaticResource ModernSlider}" 
+                <Slider x:Name="RedSlider" Maximum="255" Value="255"
+                        Style="{StaticResource ModernSlider}"
+                        ToolTip="Amount of red, 0 to 255"
                         ValueChanged="Slider_ValueChanged"/>
             </StackPanel>
 
             <StackPanel Grid.Row="2" Margin="0,0,0,15">
                 <DockPanel LastChildFill="False">
                     <Label Content="Green" Foreground="#66FF66" FontSize="16" FontWeight="Bold"/>
-                    <TextBlock x:Name="GreenValueText" Text="255" Foreground="White" 
-                               VerticalAlignment="Center" DockPanel.Dock="Right"/>
+                    <TextBlock x:Name="GreenValueText" Text="255" Style="{StaticResource SmallLabel}"
+                               DockPanel.Dock="Right"/>
                 </DockPanel>
-                <Slider x:Name="GreenSlider" Maximum="255" Value="255" 
+                <Slider x:Name="GreenSlider" Maximum="255" Value="255"
                         Style="{StaticResource ModernSlider}"
+                        ToolTip="Amount of green, 0 to 255"
                         ValueChanged="Slider_ValueChanged"/>
             </StackPanel>
 
             <StackPanel Grid.Row="3" Margin="0,0,0,15">
                 <DockPanel LastChildFill="False">
                     <Label Content="Blue" Foreground="#6666FF" FontSize="16" FontWeight="Bold"/>
-                    <TextBlock x:Name="BlueValueText" Text="255" Foreground="White" 
-                               VerticalAlignment="Center" DockPanel.Dock="Right"/>
+                    <TextBlock x:Name="BlueValueText" Text="255" Style="{StaticResource SmallLabel}"
+                               DockPanel.Dock="Right"/>
                 </DockPanel>
-                <Slider x:Name="BlueSlider" Maximum="255" Value="255" 
+                <Slider x:Name="BlueSlider" Maximum="255" Value="255"
                         Style="{StaticResource ModernSlider}"
+                        ToolTip="Amount of blue, 0 to 255"
                         ValueChanged="Slider_ValueChanged"/>
             </StackPanel>
 
             <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Center">
-                <Button Content="Confirm" Click="OkButton_Click" 
-                        Style="{StaticResource GradientRoundedButtonStyle}" 
+                <Button Content="Confirm" Click="OkButton_Click"
+                        Style="{StaticResource GradientRoundedButtonStyle}"
+                        IsDefault="True"
+                        ToolTip="Use this color (Enter)"
                         Width="120" Height="40" Margin="0,0,20,0"/>
 
-                <Button Content="Cancel" Click="CancelButton_Click" 
-                        Style="{StaticResource GradientRoundedButtonStyle}" 
+                <Button Content="Cancel" Click="CancelButton_Click"
+                        Style="{StaticResource GradientRoundedButtonStyle}"
+                        IsCancel="True"
+                        ToolTip="Keep the previous color (Esc)"
                         Width="120" Height="40"/>
             </StackPanel>
         </Grid>

@@ -16,6 +16,62 @@
         <GradientStop Color="#FFC0CB" Offset="1.0"/>
     </LinearGradientBrush>
 
+    <!-- Window surfaces, shared by every window so they stay in step -->
+    <LinearGradientBrush x:Key="WindowBackgroundBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#444" Offset="0.0"/>
+        <GradientStop Color="#222" Offset="1.0"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="ControlBarBackgroundBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#333" Offset="0.0"/>
+        <GradientStop Color="#111" Offset="1.0"/>
+    </LinearGradientBrush>
+    <SolidColorBrush x:Key="TitleBarBackgroundBrush" Color="#202020"/>
+    <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#101010"/>
+    <SolidColorBrush x:Key="PanelBorderBrush" Color="#333333"/>
+    <SolidColorBrush x:Key="VideoBackgroundBrush" Color="Black"/>
+    <SolidColorBrush x:Key="MutedTextBrush" Color="#CCCCCC"/>
+    <SolidColorBrush x:Key="PlaceholderTextBrush" Color="#666666"/>
+    <SolidColorBrush x:Key="ActiveToggleBorderBrush" Color="LightGreen"/>
+
+    <!-- Message box colours: pale green for success, pale red for warnings, dark text on both -->
+    <SolidColorBrush x:Key="SuccessBackgroundBrush" Color="#D4EDDA"/>
+    <SolidColorBrush x:Key="SuccessBorderBrush" Color="#C3E6CB"/>
+    <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#F8D7DA"/>
+    <SolidColorBrush x:Key="WarningBorderBrush" Color="#F5C6CB"/>
+    <SolidColorBrush x:Key="LightSurfaceTextBrush" Color="#1E1E1E"/>
+
+    <Style x:Key="TitleBarTextStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="15,0,0,0"/>
+    </Style>
+
+    <!-- Label in front of a setting -->
+    <Style x:Key="SettingLabel" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Smaller label next to a control inside a row -->
+    <Style x:Key="SmallLabel" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Current value shown after a slider -->
+    <Style x:Key="SliderValue" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="TextAlignment" Value="Right"/>
+        <Setter Property="Width" Value="36"/>
+    </Style>
+
     <Style x:Key="TitleBarButtonStyle" TargetType="Button">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="White"/>
@@ -345,7 +401,82 @@
         </Setter>
     </Style>
 
+    <!-- Slim scroll bars in the theme colours, applied to every ScrollViewer -->
+    <Style x:Key="ScrollBarThumbStyle" TargetType="Thumb">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Border CornerRadius="4" Background="{StaticResource MainGradientBrush}"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ScrollBarPageButtonStyle" TargetType="RepeatButton">
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Background="Transparent"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="ScrollBar">
+        <Setter Property="Width" Value="8"/>
+        <Setter Property="MinWidth" Value="8"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Border Background="#33000000" CornerRadius="4">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageUpCommand" Style="{StaticResource ScrollBarPageButtonStyle}"/>
+                            </Track.DecreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource ScrollBarThumbStyle}"/>
+                            </Track.Thumb>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageDownCommand" Style="{StaticResource ScrollBarPageButtonStyle}"/>
+                            </Track.IncreaseRepeatButton>
+                        </Track>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Width" Value="Auto"/>
+                <Setter Property="MinWidth" Value="0"/>
+                <Setter Property="Height" Value="8"/>
+                <Setter Property="MinHeight" Value="8"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ScrollBar">
+                            <Border Background="#33000000" CornerRadius="4">
+                                <Track x:Name="PART_Track">
+                                    <Track.DecreaseRepeatButton>
+                                        <RepeatButton Command="ScrollBar.PageLeftCommand" Style="{StaticResource ScrollBarPageButtonStyle}"/>
+                                    </Track.DecreaseRepeatButton>
+                                    <Track.Thumb>
+                                        <Thumb Style="{StaticResource ScrollBarThumbStyle}"/>
+                                    </Track.Thumb>
+                                    <Track.IncreaseRepeatButton>
+                                        <RepeatButton Command="ScrollBar.PageRightCommand" Style="{StaticResource ScrollBarPageButtonStyle}"/>
+                                    </Track.IncreaseRepeatButton>
+                                </Track>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
     <Style TargetType="ToolTip">
+        <Setter Property="FontFamily" Value="{StaticResource PixelatedEleganceFont}"/>
+        <Setter Property="MaxWidth" Value="420"/>
         <Setter Property="Background" Value="#333333"/>
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="BorderBrush" Value="{StaticResource MainGradientBrush}"/>
@@ -362,7 +493,14 @@
                         SnapsToDevicePixels="True">
                         <ContentPresenter Margin="{TemplateBinding Padding}"
                                       HorizontalAlignment="Center"
-                                      VerticalAlignment="Center"/>
+                                      VerticalAlignment="Center">
+                            <ContentPresenter.Resources>
+                                <!-- Lets long tooltip text wrap instead of running off the screen -->
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="TextWrapping" Value="Wrap"/>
+                                </Style>
+                            </ContentPresenter.Resources>
+                        </ContentPresenter>
                     </Border>
                 </ControlTemplate>
             </Setter.Value>

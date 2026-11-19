@@ -27,7 +27,7 @@
 ### Prerequisites
 * Windows OS
 * .NET Desktop Runtime (matching the project target, currently set to .NET 10.0).
-* **FFmpeg**: The application attempts to download FFmpeg automatically on first run, but having it installed is recommended.
+* **FFmpeg**: Downloaded automatically on first run to `%LOCALAPPDATA%\ASCIIV\ffmpeg`. To use your own build instead, place `ffmpeg.exe` and `ffprobe.exe` in an `ffmpeg` folder next to the application. Without FFmpeg, videos are converted without audio and MP4 export is unavailable.
 
 ### Installation / Build
 1.  Clone the repository.
@@ -54,6 +54,8 @@ Click the **"Load Video"** button to select a source file (supports `.mp4`, `.av
 
 ### 3. Convert
 Click **"Convert & Save"**. The application will process the video frame-by-frame. A progress bar will indicate the status.
+
+Finished files are saved to the `ASCIIV` folder inside your **Videos** folder.
 
 ### 4. Play
 Once finished, click **"Play Last Output"** to open the built-in player window and watch your creation immediately.

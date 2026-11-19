@@ -1,12 +1,9 @@
 ﻿using System.Windows;
 
-namespace ASCIIV.Converter {
-    /// <summary>
-    /// Interaction logic for App.xaml
-    /// </summary>
-    public partial class App : Application {
-        public App() {
-        }
-    }
+namespace ASCIIV.Converter;
 
+/// <summary>
+/// Interaction logic for App.xaml
+/// </summary>
+public partial class App {
 }

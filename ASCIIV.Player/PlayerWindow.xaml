@@ -1,4 +1,4 @@
-﻿<Window x:Class="ASCIIV.Player.PlayerWindow"
+<Window x:Class="ASCIIV.Player.PlayerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="ASCII Player" Height="600" Width="800"
@@ -8,6 +8,8 @@
         ResizeMode="CanResize"
         Drop="Window_Drop"
         AllowDrop="True"
+        Focusable="True"
+        KeyDown="Window_KeyDown"
         FontFamily="{StaticResource PixelatedEleganceFont}">
 
     <Border CornerRadius="10" BorderThickness="2" BorderBrush="{StaticResource MainGradientBrush}">
@@ -98,16 +100,41 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
 
-                            <Button Grid.Column="0" x:Name="PlayPauseButton" 
-                                    Style="{StaticResource GradientRoundedButtonStyle}"
-                                    Width="80" Height="38" 
-                                    Click="PlayPauseButton_Click">
-                                <Path x:Name="PlayButtonIcon"
-                                      Data="{StaticResource PauseIcon}"
-                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                      Stretch="Uniform" Height="14" Width="14"/>
-                            </Button>
+                            <!-- Left controls: Play/Pause and Loop toggle -->
+                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                <Button x:Name="PlayPauseButton" 
+                                        Style="{StaticResource GradientRoundedButtonStyle}"
+                                        Width="80" Height="38" 
+                                        Click="PlayPauseButton_Click"
+                                        ToolTip="Play / Pause (Space)">
+                                    <Path x:Name="PlayButtonIcon"
+                                          Data="{StaticResource PauseIcon}"
+                                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          Stretch="Uniform" Height="14" Width="14"/>
+                                </Button>
 
+                                <!-- UX: Loop toggle button -->
+                                <Button x:Name="LoopButton"
+                                        Style="{StaticResource GradientRoundedButtonStyle}"
+                                        Height="38" Width="50"
+                                        Click="LoopButton_Click"
+                                        Margin="10,0,0,0"
+                                        ToolTip="Toggle Loop (L)">
+                                    <TextBlock x:Name="LoopButtonText" Text="Loop" 
+                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
+                                               FontWeight="Bold" FontSize="11" Opacity="0.6"/>
+                                </Button>
+                            </StackPanel>
+
+                            <!-- UX: Timecode display (Elapsed / Total) -->
+                            <TextBlock Grid.Column="1" x:Name="TimecodeText"
+                                       Text="00:00 / 00:00"
+                                       Style="{StaticResource ModernTextBlock}"
+                                       VerticalAlignment="Center"
+                                       Margin="20,0,0,0"
+                                       FontSize="13"/>
+
+                            <!-- Right controls: Snapshot, FullScreen, Volume -->
                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
 
                                 <Button x:Name="SnapshotButton"
@@ -115,7 +142,7 @@
                                         Height="38" Width="50"
                                         Click="SnapshotButton_Click"
                                         Margin="0,0,10,0"
-                                        ToolTip="Save Snapshot">
+                                        ToolTip="Save Snapshot (S)">
                                     <Path Data="{StaticResource CameraIcon}"
                                           Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                           Stretch="Uniform" Width="16" Height="16"/>
@@ -125,7 +152,8 @@
                                         Style="{StaticResource GradientRoundedButtonStyle}"
                                         Height="38" Width="50"
                                         Click="FullScreenButton_OnClick"
-                                        Margin="0,0,15,0">
+                                        Margin="0,0,15,0"
+                                        ToolTip="Toggle Fullscreen (F)">
                                     <Path x:Name="FullScreenIcon"
                                           Data="{StaticResource FullScreenIcon}"
                                           Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"

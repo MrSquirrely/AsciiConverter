@@ -1,0 +1,82 @@
+name: Release
+
+# Builds, tests and packages the converter and player, then publishes them as a GitHub release.
+# Runs on every update of main, and can also be started by hand from the Actions tab.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write # needed to create the tag and the release
+
+# Releases are made one at a time and never cancelled halfway
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  # Major and minor version. The build number of the workflow run is added as the third part,
+  # so every release gets a new, increasing version: 1.1.1, 1.1.2, ...
+  VERSION_PREFIX: "1.1"
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  release:
+    name: Build and release
+    # WPF only builds on Windows. Manual runs are limited to main so a release always matches main
+    runs-on: windows-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v7
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Work out the version
+        shell: pwsh
+        run: |
+          $version = "$env:VERSION_PREFIX.$env:GITHUB_RUN_NUMBER"
+          "VERSION=$version" >> $env:GITHUB_ENV
+          "TAG=V$version" >> $env:GITHUB_ENV
+          Write-Host "Releasing version $version"
+
+      - name: Run the tests
+        run: dotnet test AsciiConverter.slnx --configuration Release
+
+      # Framework-dependent builds, like the earlier releases: small downloads that need the .NET Desktop Runtime
+      - name: Publish the converter
+        run: >
+          dotnet publish AsciiConverter/ASCIIV.Converter.csproj
+          --configuration Release --runtime win-x64 --self-contained false
+          -p:Version=${{ env.VERSION }} -p:DebugType=none
+          --output publish/ASCIIVConverter
+
+      - name: Publish the player
+        run: >
+          dotnet publish ASCIIV.Player/ASCIIV.Player.csproj
+          --configuration Release --runtime win-x64 --self-contained false
+          -p:Version=${{ env.VERSION }} -p:DebugType=none
+          --output publish/ASCIIVPlayer
+
+      - name: Package the builds
+        shell: pwsh
+        run: |
+          Compress-Archive -Path publish/ASCIIVConverter/* -DestinationPath ASCIIVConverter.zip
+          Compress-Archive -Path publish/ASCIIVPlayer/* -DestinationPath ASCIIVPlayer.zip
+          Get-Item ASCIIVConverter.zip, ASCIIVPlayer.zip | Format-Table Name, @{ Name = 'MB'; Expression = { [math]::Round($_.Length / 1MB, 1) } }
+
+      - name: Create the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create $env:TAG ASCIIVConverter.zip ASCIIVPlayer.zip
+          --target $env:GITHUB_SHA
+          --title "ASCIIV v$env:VERSION"
+          --generate-notes

@@ -33,6 +33,9 @@
 * **FFmpeg**: Downloaded automatically on first run to `%LOCALAPPDATA%\ASCIIV\ffmpeg`. To use your own build instead, place `ffmpeg.exe` and `ffprobe.exe` in an `ffmpeg` folder next to the application. Without FFmpeg, videos are converted without audio and MP4 export is unavailable.
 * **Shrek font (optional)**: The Shrek preset and the "Shrek" entry in the Font list use the Shrek font by Kevin Wilson, which is not included in this repository. Download it from [fontmeme.com/fonts/shrek-kevin-wilson-font](https://fontmeme.com/fonts/shrek-kevin-wilson-font/) and save the `.ttf` file as `ASCIIV.Core/Fonts/Shrek.ttf` before building. Without it everything still works, but those videos are drawn in the default monospaced font.
 
+### Download
+Ready-made builds are on the [Releases page](https://github.com/MrSquirrely/AsciiConverter/releases). Each release has two downloads: `ASCIIVConverter.zip` (the converter, which also includes the player) and `ASCIIVPlayer.zip` (the player on its own). Unzip and run the `.exe`; both need the .NET Desktop Runtime listed above. A new release is built automatically every time the `main` branch is updated.
+
 ### Installation / Build
 1.  Clone the repository.
 2.  Open the solution in Visual Studio or your preferred .NET IDE.
